@@ -103,9 +103,32 @@ namespace Utility::PointerQualifiers {
 }
 
 namespace Utility::Reflection::Private {
-	template<typename>
-	inline auto EmbedTypeNameIntoSignature() -> std::string_view {
+	template<typename Type>
+	consteval auto EmbedTypeNameIntoSignature() -> std::string_view {
+#if defined(__clang__) || defined(__GNUC__)
+		return __PRETTY_FUNCTION__;
+#elif defined(_MSC_VER)
+		return __FUNCSIG__;
+#else
 		return std::string_view{ std::source_location::current().function_name() };
+#endif
+	}
+	template<typename Type>
+	consteval auto ExtractTypeName() -> std::string_view {
+		const auto Signature = EmbedTypeNameIntoSignature<Type>();
+#if defined(__clang__) || defined(__GNUC__)
+		constexpr auto Marker = "Type = "sv;
+		const auto Start = Signature.find(Marker) + Marker.size();
+		const auto End = Signature.find_first_of(";]"sv, Start);
+		return Signature.substr(Start, End - Start);
+#elif defined(_MSC_VER)
+		constexpr auto Prefix = "EmbedTypeNameIntoSignature<"sv;
+		const auto Start = Signature.find(Prefix) + Prefix.size();
+		const auto End = Signature.find(">"sv, Start);
+		return Signature.substr(Start, End - Start);
+#else
+		return Signature;
+#endif
 	}
 	template<typename, typename>
 	struct ContainerReplaceTypeArgument {};
@@ -125,12 +148,8 @@ namespace Utility::Reflection::Private {
 
 namespace Utility::Reflection {
 	template<typename UnknownType>
-	inline auto ReifyTypeNameIntoString() -> std::string_view {
-		const auto SignatureTemplate = Private::EmbedTypeNameIntoSignature<double>();
-		const auto EmbeddingSignature = Private::EmbedTypeNameIntoSignature<UnknownType>();
-		const auto CaptionLength = SignatureTemplate.find("double");
-		const auto EnclosureLength = SignatureTemplate.size() - CaptionLength - "double"sv.size();
-		return EmbeddingSignature.substr(CaptionLength, EmbeddingSignature.size() - CaptionLength - EnclosureLength);
+	consteval auto ReifyTypeNameIntoString() -> std::string_view {
+		return Private::ExtractTypeName<UnknownType>();
 	}
 	template<typename ReferenceContainerType, typename TargetElementType>
 	using ContainerReplaceElementType = Private::ContainerReplaceTypeArgument<std::decay_t<ReferenceContainerType>, TargetElementType>::ReassembledType;
