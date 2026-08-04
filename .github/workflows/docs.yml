@@ -3,7 +3,7 @@ name: Documentation
 on:
   push:
     branches:
-      - master
+      - docs/zensical
   workflow_dispatch:
 
 permissions:
