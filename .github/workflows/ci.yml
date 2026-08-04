@@ -55,3 +55,55 @@ jobs:
             -Iinclude -I"$RUNNER_TEMP/vapoursynth/include" \
             Examples/EntryPoint.cxx -o "$RUNNER_TEMP/entrypoint.o"
           nm -g --defined-only "$RUNNER_TEMP/entrypoint.o" | grep -E 'VapourSynthPluginInit2$'
+
+  msvc:
+    name: MSVC
+    runs-on: windows-2025-vs2026
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch VapourSynth API headers
+        shell: pwsh
+        run: git clone --depth=1 https://github.com/vapoursynth/vapoursynth.git "$env:RUNNER_TEMP\vapoursynth"
+
+      - name: Build and run adapter tests
+        shell: cmd
+        run: |
+          for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -find VC\Auxiliary\Build\vcvars64.bat`) do set "VCVARS=%%i"
+          if not defined VCVARS exit /b 1
+          call "%VCVARS%"
+          if errorlevel 1 exit /b 1
+
+          cl /nologo /std:c++23preview /W4 /permissive- /EHsc /Zc:__cplusplus /c ^
+            /Iinclude /I"%RUNNER_TEMP%\vapoursynth\include" ^
+            Examples\EntryPoint.cxx /Fo"%RUNNER_TEMP%\entrypoint.obj"
+          if errorlevel 1 exit /b 1
+          cl /nologo /std:c++23preview /W4 /permissive- /EHsc /Zc:__cplusplus /c ^
+            /Iinclude /I"%RUNNER_TEMP%\vapoursynth\include" ^
+            tests\compile.cxx /Fo"%RUNNER_TEMP%\compile.obj"
+          if errorlevel 1 exit /b 1
+
+          cl /nologo /std:c++23preview /W4 /permissive- /EHsc /Zc:__cplusplus ^
+            /Iinclude /I"%RUNNER_TEMP%\vapoursynth\include" ^
+            tests\compile.cxx /Fe"%RUNNER_TEMP%\vsfilterscript-format-test.exe"
+          if errorlevel 1 exit /b 1
+          "%RUNNER_TEMP%\vsfilterscript-format-test.exe"
+          if errorlevel 1 exit /b 1
+
+          cl /nologo /std:c++23preview /W4 /permissive- /EHsc /Zc:__cplusplus /LD ^
+            /Iinclude /I"%RUNNER_TEMP%\vapoursynth\include" ^
+            Examples\EntryPoint.cxx ^
+            /link /OUT:"%RUNNER_TEMP%\vsfilterscriptexample.dll" ^
+            /IMPLIB:"%RUNNER_TEMP%\vsfilterscriptexample.lib"
+          if errorlevel 1 exit /b 1
+
+          cl /nologo /std:c++23preview /W4 /permissive- /EHsc /Zc:__cplusplus ^
+            /Iinclude /I"%RUNNER_TEMP%\vapoursynth\include" ^
+            tests\registration.cxx /Fe"%RUNNER_TEMP%\vsfilterscript-registration-test.exe"
+          if errorlevel 1 exit /b 1
+          "%RUNNER_TEMP%\vsfilterscript-registration-test.exe" "%RUNNER_TEMP%\vsfilterscriptexample.dll"
+          if errorlevel 1 exit /b 1
+
+          dumpbin /exports "%RUNNER_TEMP%\vsfilterscriptexample.dll" | findstr /c:"VapourSynthPluginInit2"
+          if errorlevel 1 exit /b 1
