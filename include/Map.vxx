@@ -86,7 +86,8 @@ namespace Utility::Map {
 			return Index < QueryStorageSize();
 		}
 		auto operator[](Countable auto Index) const {
-			auto Replica = *this;
+			auto Replica = Item{};
+			Replica.StorageAccess = StorageAccess;
 			Replica.Index = static_cast<std::ptrdiff_t>(Index);
 			return Replica;
 		}
