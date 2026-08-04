@@ -54,6 +54,7 @@ namespace Utility::Map {
 		Item(auto&& Handle, ExplicitlyConvertibleTo<std::string> auto&& Key) {
 			this->StorageAccess = std::make_shared<SharedState>(Forward(Handle), Forward(Key));
 		}
+		Item(std::shared_ptr<SharedState> State, std::ptrdiff_t Index) : StorageAccess{ std::move(State) }, Index{ Index } {}
 		Item(const Item&) = default;
 		Item(Item&&) = default;
 		auto& operator=(const Item&) requires Readonly = delete;
@@ -85,11 +86,8 @@ namespace Utility::Map {
 		auto Exists() const {
 			return Index < QueryStorageSize();
 		}
-		auto operator[](Countable auto Index) const {
-			auto Replica = Item{};
-			Replica.StorageAccess = StorageAccess;
-			Replica.Index = static_cast<std::ptrdiff_t>(Index);
-			return Replica;
+		auto operator[](Countable auto Index) const -> Item {
+			return Item{ StorageAccess, static_cast<std::ptrdiff_t>(Index) };
 		}
 		auto size() const {
 			return static_cast<std::size_t>(QueryStorageSize() - Index);
