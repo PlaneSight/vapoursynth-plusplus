@@ -18,7 +18,7 @@ supported compiler.
 | VapourSynth SDK | API 4.2 or newer |
 | API header | `VapourSynth4.h`, selected by `VapourSynthConfig.vxx` |
 | Linux CI | GCC and Clang with `-std=c++23` |
-| Windows CI | MSVC with `/std:c++23preview` |
+| Windows CI | MSVC with `/std:c++latest` |
 | Warning policy | GCC and Clang `-Wall -Wextra -Wpedantic`; MSVC `/W4 /permissive-` |
 
 The API requirement is enforced in the public configuration header:
@@ -31,8 +31,10 @@ static_assert(VAPOURSYNTH_API_MAJOR == 4);
 static_assert(VAPOURSYNTH_API_MINOR >= 2);
 ~~~
 
-The language requirement is enforced by the build and CI configuration. A compiler that accepts
-the headers only as an extension is not a supported build.
+The language requirement is enforced by the build and CI configuration. Meson requests
+`c++23,c++latest` in that order: GCC and Clang select the named C++23 mode, while MSVC selects
+`/std:c++latest`, its supported spelling for post-C++20 language features. A compiler that cannot
+provide the required C++23 features is not a supported build.
 
 ## Why the baseline is C++23
 
@@ -91,10 +93,13 @@ The Build workflow checks more than whether one translation unit parses:
 3. Build the example plugin as a shared library.
 4. Load the library and invoke `VapourSynthPluginInit2` with the registration test.
 5. Verify the exported `VapourSynthPluginInit2` symbol.
+6. Build against the pinned VapourSynth R78 wheel and verify all exports plus a real frame through
+   `vspipe` on CPython 3.14.
 
-The registration test exercises the plugin descriptor and registered function signatures without
-requiring a full VapourSynth host on the CI worker. A real host-level integration test remains a
-separate concern from compiler conformance.
+The registration test isolates the plugin descriptor and exact function signatures from host
+behavior. The runtime job provides the complementary integration boundary: it catches signatures
+that a stub accepts but the released VapourSynth core rejects, then verifies a frame request and
+sample value through VSScript and `vspipe`.
 
 ## Contributor checklist
 

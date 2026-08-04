@@ -5,7 +5,7 @@ project(
     default_options : [
         'b_ndebug=if-release',
         'buildtype=release',
-        'cpp_std=c++23',
+        'cpp_std=c++23,c++latest',
         'warning_level=3',
     ],
 )
