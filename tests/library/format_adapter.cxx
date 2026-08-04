@@ -5,6 +5,8 @@
 #include <iostream>
 #include <string>
 
+struct ReflectionNameProbe {};
+
 namespace {
 auto Require(bool Condition, const char* Message) -> bool {
 	if (Condition)
@@ -16,6 +18,8 @@ auto Require(bool Condition, const char* Message) -> bool {
 }
 
 int main() {
+	static_assert(Utility::Reflection::ReifyTypeNameIntoString<ReflectionNameProbe>() == "ReflectionNameProbe");
+
 	const auto ParsedSignature = Utility::SignatureParser::ExtractParameterList(
 		"Filter(clip: vnode, frame: vframe, label: string, flag: bool?)");
 	if (!Require(

@@ -125,7 +125,11 @@ namespace Utility::Reflection::Private {
 		constexpr auto Prefix = "EmbedTypeNameIntoSignature<"sv;
 		const auto Start = Signature.find(Prefix) + Prefix.size();
 		const auto End = Signature.find(">"sv, Start);
-		return Signature.substr(Start, End - Start);
+		auto Name = Signature.substr(Start, End - Start);
+		for (const auto TypeKeyword : { "class "sv, "struct "sv, "enum "sv, "union "sv })
+			if (Name.starts_with(TypeKeyword))
+				return Name.substr(TypeKeyword.size());
+		return Name;
 #else
 		return Signature;
 #endif
