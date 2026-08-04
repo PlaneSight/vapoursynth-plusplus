@@ -1,0 +1,52 @@
+[project]
+site_name = "vapoursynth-plusplus"
+site_description = "A C++23, header-oriented layer for authoring VapourSynth API 4 filters."
+site_url = "https://planesight.github.io/vapoursynth-plusplus/"
+repo_url = "https://github.com/PlaneSight/vapoursynth-plusplus"
+repo_name = "PlaneSight/vapoursynth-plusplus"
+
+nav = [
+    { "Home" = "index.md" },
+    { "Get started" = [
+        { "Installation" = "getting-started/installation.md" },
+        { "Your first filter" = "getting-started/first-filter.md" },
+    ] },
+    { "Concepts" = [
+        { "Filter lifecycle" = "concepts/filter-lifecycle.md" },
+        { "Frames and ownership" = "concepts/frames-and-ownership.md" },
+        { "Scheduling and dependencies" = "concepts/scheduling.md" },
+    ] },
+    { "Reference" = [
+        { "Registration" = "reference/registration.md" },
+        { "CoreProxy" = "reference/core.md" },
+        { "VideoNode and VideoFrame" = "reference/video.md" },
+        { "Maps and functions" = "reference/maps-and-functions.md" },
+        { "Formats and metadata" = "reference/formats.md" },
+    ] },
+    { "Examples" = [
+        { "Overview" = "examples/index.md" },
+        { "Example catalog" = "examples/catalog.md" },
+    ] },
+    { "Project" = [
+        { "Contributing" = "project/contributing.md" },
+    ] },
+]
+
+[project.theme]
+features = [
+    "navigation.instant",
+    "navigation.path",
+    "navigation.indexes",
+    "navigation.top",
+    "toc.follow",
+    "search.highlight",
+    "content.code.copy",
+    "content.tabs.link",
+]
+
+[project.markdown_extensions.admonition]
+[project.markdown_extensions.attr_list]
+[project.markdown_extensions.pymdownx.details]
+[project.markdown_extensions.pymdownx.superfences]
+[project.markdown_extensions.pymdownx.tabbed]
+alternate_style = true
