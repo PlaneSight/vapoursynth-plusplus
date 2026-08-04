@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <string>
 
 namespace {
 auto Require(bool Condition, const char* Message) -> bool {
@@ -15,6 +16,14 @@ auto Require(bool Condition, const char* Message) -> bool {
 }
 
 int main() {
+	const auto ParsedSignature = Utility::SignatureParser::ExtractParameterList(
+		"Filter(clip: vnode, frame: vframe, label: string, flag: bool?)");
+	if (!Require(
+			ParsedSignature == "clip:vnode;frame:vframe;label:data;flag:int:opt;",
+			"signature parser must preserve API 4 node and frame types")) {
+		return EXIT_FAILURE;
+	}
+
 	constexpr auto APIFormat = VSVideoFormat{
 		.colorFamily = cfYUV,
 		.sampleType = stFloat,

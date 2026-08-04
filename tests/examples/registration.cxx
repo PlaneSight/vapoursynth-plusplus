@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -97,16 +98,28 @@ int main(int ArgumentCount, char** Arguments) {
 	}
 
 	auto Names = std::set<std::string>{};
+	const auto ExpectedArguments = std::map<std::string, std::string>{
+		{ "Crop", "clip:vnode;left:int:opt;right:int:opt;top:int:opt;bottom:int:opt;" },
+		{ "GaussBlur", "clip:vnode;" },
+		{ "GaussBlurFast", "clip:vnode;" },
+		{ "MaskedMerge", "clipa:vnode;clipb:vnode;mask:vnode;" },
+		{ "ModifyFrame", "clip:vnode;evaluator:func;" },
+		{ "Palette", "shades:float[];width:int:opt;height:int:opt;" },
+		{ "Rec601ToRGB", "clip:vnode;" },
+		{ "SeparableConvolution", "clip:vnode;h_kernel:float[]:opt;v_kernel:float[]:opt;" },
+		{ "TemporalMedian", "clip:vnode;radius:int:opt;" },
+	};
 	for (const auto& Registration : Registrations) {
-		if (!Require(!Registration.Name.empty(), "registered function name must not be empty") ||
-			!Require(!Registration.Arguments.empty(), "registered argument signature must not be empty") ||
-			!Require(Registration.Arguments.back() == ';', "registered argument signature must end with a semicolon") ||
+		const auto Expected = ExpectedArguments.find(Registration.Name);
+		if (!Require(Expected != ExpectedArguments.end(), "unexpected registered function name") ||
+			!Require(Registration.Arguments == Expected->second, "unexpected registered argument signature") ||
 			!Require(Registration.ReturnType == "clip:vnode;", "unexpected registered return signature")) {
 			return EXIT_FAILURE;
 		}
 		Names.insert(Registration.Name);
 	}
-	return Require(Names.size() == Registrations.size(), "registered function names must be unique")
+	return Require(Names.size() == Registrations.size(), "registered function names must be unique") &&
+			Require(Names.size() == ExpectedArguments.size(), "registered function set is incomplete")
 		? EXIT_SUCCESS
 		: EXIT_FAILURE;
 }

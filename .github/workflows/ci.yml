@@ -31,6 +31,11 @@ jobs:
       - name: Fetch VapourSynth API headers
         run: git clone --depth=1 https://github.com/vapoursynth/vapoursynth.git "$RUNNER_TEMP/vapoursynth"
 
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
         with:
@@ -67,6 +72,11 @@ jobs:
       - name: Set up MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
         with:
@@ -90,3 +100,39 @@ jobs:
             "-Dvapoursynth_include_dir=$env:RUNNER_TEMP\vapoursynth\include"
           uv run --group build meson compile -C build-examples
           uv run --group build meson test -C build-examples --print-errorlogs
+
+  runtime:
+    name: VapourSynth R78 runtime
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install build and runtime dependencies
+        run: uv sync --group build --group runtime-test --locked
+
+      - name: Configure VapourSynth
+        run: uv run --group runtime-test vapoursynth config
+
+      - name: Build standalone examples against R78
+        run: |
+          include_dir="$(uv run --group runtime-test python -c 'import vapoursynth as vs; print(vs.get_include())')"
+          uv run --group build meson setup build-runtime examples \
+            -Dvapoursynth_include_dir="$include_dir"
+          uv run --group build meson compile -C build-runtime
+          uv run --group build meson test -C build-runtime --print-errorlogs
+
+      - name: Request and verify a frame through vspipe
+        env:
+          VAPOURSYNTH_PLUSPLUS_EXAMPLE: ${{ github.workspace }}/build-runtime/libvapoursynth-plusplus-example.so
+        run: uv run --group runtime-test vspipe --info tests/examples/runtime.vpy -

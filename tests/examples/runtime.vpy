@@ -12,6 +12,19 @@ EXPECTED_WIDTH = 4
 EXPECTED_HEIGHT = 4
 EXPECTED_SHADE = 0.25
 SAMPLE_TOLERANCE = 1e-6
+EXPECTED_FUNCTIONS = frozenset(
+    {
+        "Crop",
+        "GaussBlur",
+        "GaussBlurFast",
+        "MaskedMerge",
+        "ModifyFrame",
+        "Palette",
+        "Rec601ToRGB",
+        "SeparableConvolution",
+        "TemporalMedian",
+    }
+)
 
 
 def require_plugin_path(environment: Mapping[str, str]) -> Path:
@@ -35,9 +48,23 @@ def require_close(actual: float, expected: float, description: str) -> None:
         raise RuntimeError(f"{description}: expected {expected!r}, got {actual!r}")
 
 
+def require_expected_functions(plugin: vs.Plugin) -> None:
+    actual = frozenset(function.name for function in plugin.functions())
+    if actual == EXPECTED_FUNCTIONS:
+        return
+
+    missing = sorted(EXPECTED_FUNCTIONS - actual)
+    unexpected = sorted(actual - EXPECTED_FUNCTIONS)
+    raise RuntimeError(
+        f"unexpected example plugin exports: missing={missing!r}, unexpected={unexpected!r}"
+    )
+
+
 def build_verified_clip(core: vs.Core, plugin_path: Path) -> vs.VideoNode:
     core.std.LoadPlugin(path=os.fspath(plugin_path))
-    clip = core.test.Palette(
+    plugin = core.test
+    require_expected_functions(plugin)
+    clip = plugin.Palette(
         shades=[EXPECTED_SHADE],
         width=EXPECTED_WIDTH,
         height=EXPECTED_HEIGHT,
