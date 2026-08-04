@@ -41,9 +41,10 @@ suffix for the host platform.
 
 ## Read the implementations
 
-Start with `Palette.hxx` for a source filter or `GaussBlur.hxx` for a
-single-input spatial filter. The [example catalog](catalog.md) compares every
-filter by input contract and scheduling model.
+Start with [Palette](palette.md) for a source filter or
+[GaussBlur](gauss-blur.md) for a single-input spatial filter. The
+[example catalog](catalog.md) compares every filter by input contract and
+scheduling model, then links to a guided code reading for each implementation.
 
 !!! warning "Examples are contracts, not universal filters"
     Several filters deliberately restrict formats or dimensions. Widening

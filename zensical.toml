@@ -32,6 +32,15 @@ nav = [
     { "Examples" = [
         { "Overview" = "examples/index.md" },
         { "Example catalog" = "examples/catalog.md" },
+        { "Palette source filter" = "examples/palette.md" },
+        { "GaussBlur neighborhood filter" = "examples/gauss-blur.md" },
+        { "GaussBlurFast specialized loops" = "examples/gauss-blur-fast.md" },
+        { "Crop typed dispatch" = "examples/crop.md" },
+        { "TemporalMedian frame windows" = "examples/temporal-median.md" },
+        { "MaskedMerge multi-input filter" = "examples/masked-merge.md" },
+        { "ModifyFrame callbacks" = "examples/modify-frame.md" },
+        { "SeparableConvolution workflow" = "examples/separable-convolution.md" },
+        { "Rec601ToRGB format conversion" = "examples/rec601-to-rgb.md" },
     ] },
     { "Project" = [
         "project/index.md",
