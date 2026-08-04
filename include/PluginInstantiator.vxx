@@ -73,23 +73,28 @@ namespace PluginInstantiator {
 
 			auto FilterInstantiator = [&](auto&& FilterArguments) {
 				auto Construct = [&] {
-					if constexpr (sizeof...(Configurations) > 0)
-						if constexpr (requires { FilterType{ FilterArguments, std::get<1>(*Configuration), Core }; })
+					if constexpr (sizeof...(Configurations) > 0) {
+						if constexpr (std::constructible_from<FilterType, decltype(FilterArguments), decltype((std::get<1>(*Configuration))), decltype((Core))>)
 							return FilterType{ FilterArguments, std::get<1>(*Configuration), Core };
-						else if constexpr (requires { FilterType{ FilterArguments, std::get<1>(*Configuration) }; })
+						else if constexpr (std::constructible_from<FilterType, decltype(FilterArguments), decltype((std::get<1>(*Configuration)))>)
 							return FilterType{ FilterArguments, std::get<1>(*Configuration) };
-						else if constexpr (requires { FilterType{ FilterArguments, Core }; })
+						else if constexpr (std::constructible_from<FilterType, decltype(FilterArguments), decltype((Core))>)
 							return FilterType{ FilterArguments, Core };
-						else if constexpr (requires { FilterType{ FilterArguments }; })
+						else if constexpr (std::constructible_from<FilterType, decltype(FilterArguments)>)
 							return FilterType{ FilterArguments };
-						else
+						else if constexpr (std::default_initializable<FilterType>)
 							return FilterType{};
-					else if constexpr (requires { FilterType{ FilterArguments, Core }; })
+						else
+							static_assert(std::default_initializable<FilterType>, "RegisterFilter: the filter has no supported constructor.");
+					}
+					else if constexpr (std::constructible_from<FilterType, decltype(FilterArguments), decltype((Core))>)
 						return FilterType{ FilterArguments, Core };
-					else if constexpr (requires { FilterType{ FilterArguments }; })
+					else if constexpr (std::constructible_from<FilterType, decltype(FilterArguments)>)
 						return FilterType{ FilterArguments };
-					else
+					else if constexpr (std::default_initializable<FilterType>)
 						return FilterType{};
+					else
+						static_assert(std::default_initializable<FilterType>, "RegisterFilter: the filter has no supported constructor.");
 				};
 				return std::make_unique<ExtendedFilterType>(std::get<0>(*Configuration), Construct());
 			};
