@@ -37,6 +37,7 @@ nav = [
         "project/index.md",
         { "Repository structure" = "project/repository-structure.md" },
         { "C++23 and compiler portability" = "project/cpp23-and-portability.md" },
+        { "C++26 adoption roadmap" = "project/cpp26-roadmap.md" },
         { "Contributing" = "project/contributing.md" },
     ] },
 ]

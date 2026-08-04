@@ -110,4 +110,5 @@ Before adding or changing a public header:
 
 The [installation guide](../getting-started/installation.md) covers SDK discovery and the normal
 build. The [registration reference](../reference/registration.md) documents the C++ filter-to-API
-adapter that this portability contract protects.
+adapter that this portability contract protects. The [C++26 adoption roadmap](cpp26-roadmap.md)
+records how reflection and other future facilities can enter without weakening this baseline.
