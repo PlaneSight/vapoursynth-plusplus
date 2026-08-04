@@ -5,9 +5,9 @@ description: Build and verify the independent example plugin.
 
 # Examples
 
-The `examples/` directory is a self-contained Meson consumer of the library.
-It owns its source, build definition, registration test, and runtime scripts;
-the root project does not reach into it.
+The `examples/` directory is an independently configured Meson consumer of the
+library. It owns the demonstration plugin and its build definition. All test
+code lives under `tests/`, grouped into `library/` and `examples/` contracts.
 
 ## Build-time verification
 
@@ -32,7 +32,7 @@ module:
 
 ```bash
 VAPOURSYNTH_PLUSPLUS_EXAMPLE=build-examples/libvapoursynth-plusplus-example.so \
-    vspipe --info examples/scripts/smoke.vpy -
+    vspipe --info tests/examples/runtime.vpy -
 ```
 
 The script loads the plugin, creates a frame with `test.Palette`, requests

@@ -39,7 +39,7 @@ endif
 
 registration_test = executable(
     'example-registration-test',
-    'tests/registration.cxx',
+    '../tests/examples/registration.cxx',
     dependencies : registration_dependencies,
 )
 test('example-registration', registration_test, args : [example_plugin.full_path()])

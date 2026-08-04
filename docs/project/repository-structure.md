@@ -6,16 +6,17 @@ description: Understand source ownership, dependency direction, and generated ar
 # Repository structure
 
 The repository is one header-only library with two consumers: its focused
-adapter tests and an independently configured example plugin.
+adapter tests and an independently configured example plugin. Verification has
+one canonical root and is grouped by the contract under test.
 
 ```text
 .
 ├── include/          Public C++23 headers
-├── tests/            Focused library contract tests
+├── tests/
+│   ├── library/      Public header adapter tests
+│   └── examples/     Plugin registration and runtime tests
 ├── examples/
-│   ├── src/          Demonstration plugin and filters
-│   ├── tests/        Plugin registration contract
-│   └── scripts/      Runtime VapourSynth demonstrations
+│   └── src/          Demonstration plugin and filters
 ├── docs/             Authored Zensical pages
 ├── meson.build       Library build and install contract
 ├── pyproject.toml    uv tool groups
@@ -25,10 +26,10 @@ adapter tests and an independently configured example plugin.
 
 ## Dependency direction
 
-`examples/` and `tests/` may include `include/`. Public headers never
-depend on examples, tests, documentation, or build output. The example project
-has its own Meson entry point so consumer-only assumptions cannot leak into the
-library build.
+`examples/` and `tests/` may include `include/`. Public headers never depend on
+examples, tests, documentation, or build output. The example project has its
+own Meson entry point, while its verification sources remain in the single
+test root. Consumer-only assumptions cannot leak into the library build.
 
 ## Generated state
 

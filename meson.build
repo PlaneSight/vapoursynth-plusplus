@@ -52,7 +52,7 @@ vapoursynth_plusplus = declare_dependency(
 
 format_test = executable(
     'vapoursynth-plusplus-format-test',
-    'tests/compile.cxx',
+    'tests/library/format_adapter.cxx',
     dependencies : vapoursynth_plusplus,
 )
 test('format-adapter', format_test)

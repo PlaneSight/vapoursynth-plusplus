@@ -101,7 +101,7 @@ list from Signature and publishes a clip:vnode; return value by default.
 ## Compile and test
 
 The example project discovers the header through `EntryPoint.cxx`. Update the
-expected registration count in `examples/tests/registration.cxx`, then build
+expected registration count in `tests/examples/registration.cxx`, then build
 and run the independent example tests:
 
 ~~~bash

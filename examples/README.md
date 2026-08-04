@@ -1,7 +1,8 @@
 # Examples
 
-This directory is an independent Meson consumer of the headers in `../include`.
-It builds one plugin containing the example filters and verifies the exported
+This directory is an independently configured Meson consumer of the headers in
+`../include`. It builds one plugin containing the example filters. The
+repository's `../tests/examples/registration.cxx` verifies the exported
 VapourSynth registration contract without requiring a VapourSynth runtime.
 
 From the repository root:
@@ -24,14 +25,14 @@ uv run --group build meson setup build-examples examples \
 
 The registration test proves that the library is loadable and that every
 filter publishes a valid descriptor. When a VapourSynth Python environment is
-also available, `scripts/smoke.vpy` executes the `Palette` source filter and
-checks the resulting frame:
+also available, `../tests/examples/runtime.vpy` executes the `Palette` source
+filter and checks the resulting frame:
 
 ```bash
 VAPOURSYNTH_PLUSPLUS_EXAMPLE=build-examples/libvapoursynth-plusplus-example.so \
-    vspipe --info examples/scripts/smoke.vpy -
+    vspipe --info tests/examples/runtime.vpy -
 ```
 
-Adjust the module suffix for the host platform. `src/` contains the filter
-implementations, `tests/` owns build-time contract checks, and `scripts/`
-contains demonstrations that require a complete VapourSynth runtime.
+Adjust the module suffix for the host platform. `src/` contains only the
+example plugin and filter implementations; all verification code has one
+canonical home under `../tests/`.
