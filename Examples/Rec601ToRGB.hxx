@@ -18,6 +18,7 @@ public:
 		Metadata.Format = Core.Query(VideoFormats::RGBS);
 		return Metadata;
 	}
+	auto SpecifyDependencies() const { return std::array{ InputClip.SpecifyDependency(rpStrictSpatial) }; }
 	auto GenerateFrame(auto Index, auto GeneratorContext, auto Core) {
 		auto InputFrame = InputClip.AcquireFrame<const float>(Index, GeneratorContext);
 		auto ProcessedFrame = VideoFrame<float>{ Core.AllocateVideoFrame(VideoFormats::RGBS, InputClip.Width, InputClip.Height) };

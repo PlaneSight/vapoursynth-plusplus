@@ -7,7 +7,12 @@ struct VideoNode : Node, AlternateRepresentations::Flattened::VideoInfo {
 	VideoNode(ExplicitlyConvertibleTo<HandleType> auto&& Handle) : Node{ Forward(Handle) } {
 		auto& MetadataInSync = static_cast<VideoInfo&>(*this);
 		auto ReferenceMetadata = this->QueryVideoInfo();
-		MetadataInSync = reinterpret_cast<VideoInfo&>(ReferenceMetadata);
+		static_cast<VideoFormat&>(MetadataInSync) = ReferenceMetadata.Format;
+		MetadataInSync.FrameRateNumerator = ReferenceMetadata.FrameRateNumerator;
+		MetadataInSync.FrameRateDenominator = ReferenceMetadata.FrameRateDenominator;
+		MetadataInSync.Width = ReferenceMetadata.Width;
+		MetadataInSync.Height = ReferenceMetadata.Height;
+		MetadataInSync.FrameCount = ReferenceMetadata.FrameCount;
 	}
 
 public:
@@ -59,11 +64,17 @@ public:
 	}
 
 public:
-	auto& ExtractMetadata() const {
-		auto& Metadata = static_cast<const VideoInfo&>(*this);
-		return reinterpret_cast<const ::VideoInfo&>(Metadata);
+	auto ExtractMetadata() const {
+		auto Metadata = ::VideoInfo{};
+		Metadata.Format = static_cast<const VideoFormat&>(*this);
+		Metadata.FrameRateNumerator = FrameRateNumerator;
+		Metadata.FrameRateDenominator = FrameRateDenominator;
+		Metadata.Width = Width;
+		Metadata.Height = Height;
+		Metadata.FrameCount = FrameCount;
+		return Metadata;
 	}
 	auto& ExtractFormat() const {
-		return ExtractMetadata().Format;
+		return static_cast<const VideoFormat&>(*this);
 	}
 };

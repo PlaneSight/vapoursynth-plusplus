@@ -3,5 +3,8 @@
 #include "Node.vxx"
 
 struct AudioNode : Node {
-	//Placeholder for API v4.
+	template<typename SampleType>
+	auto FetchFrame(std::integral auto Index, auto GeneratorContext) const {
+		return AudioFrame<SampleType>{ Node::FetchFrame(Index, GeneratorContext).Leak() };
+	}
 };

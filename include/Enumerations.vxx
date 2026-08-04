@@ -1,5 +1,9 @@
 #pragma once
 
+#include <cstdint>
+
+#include "VapourSynthConfig.vxx"
+
 enum struct ColorFamilies : int {
 	Undefined = 0,
 	Gray = 1000000,
@@ -13,22 +17,23 @@ enum struct SampleTypes : int {
 };
 
 enum struct ItemTypes {
-	Int = 'i',
-	Float = 'f',
-	String = 's',
-	VideoNode = 'c',
-	VideoFrame = 'v',
-	Function = 'm',
-	AudioNode,
-	AudioFrame
+	Unset = ptUnset,
+	Int = ptInt,
+	Float = ptFloat,
+	String = ptData,
+	Function = ptFunction,
+	VideoNode = ptVideoNode,
+	AudioNode = ptAudioNode,
+	VideoFrame = ptVideoFrame,
+	AudioFrame = ptAudioFrame
 };
 
 enum struct MessageTypes {
 	Debug = 0,
-	Warning = 1,
-	Critical = 2,
-	Fatal = 3,
-	Information
+	Information = 1,
+	Warning = 2,
+	Critical = 3,
+	Fatal = 4
 };
 
 enum struct ExecutionSchemes {
@@ -48,42 +53,42 @@ enum struct WriteProtectOptions {
 	WriteOnce = 1
 };
 
-enum struct VideoFormats {
-	None = 0,
+enum struct VideoFormats : std::uint32_t {
+	None = pfNone,
 
-	Gray8 = static_cast<int>(ColorFamilies::Gray) + 10,
-	Gray16,
-	GrayH,
-	GrayS,
+	Gray8 = pfGray8,
+	Gray16 = pfGray16,
+	GrayH = pfGrayH,
+	GrayS = pfGrayS,
 
-	YUV420P8 = static_cast<int>(ColorFamilies::YUV) + 10,
-	YUV422P8,
-	YUV444P8,
-	YUV410P8,
-	YUV411P8,
-	YUV440P8,
-	YUV420P9,
-	YUV422P9,
-	YUV444P9,
-	YUV420P10,
-	YUV422P10,
-	YUV444P10,
-	YUV420P16,
-	YUV422P16,
-	YUV444P16,
-	YUV444PH,
-	YUV444PS,
-	YUV420P12,
-	YUV422P12,
-	YUV444P12,
-	YUV420P14,
-	YUV422P14,
-	YUV444P14,
+	YUV420P8 = pfYUV420P8,
+	YUV422P8 = pfYUV422P8,
+	YUV444P8 = pfYUV444P8,
+	YUV410P8 = pfYUV410P8,
+	YUV411P8 = pfYUV411P8,
+	YUV440P8 = pfYUV440P8,
+	YUV420P9 = pfYUV420P9,
+	YUV422P9 = pfYUV422P9,
+	YUV444P9 = pfYUV444P9,
+	YUV420P10 = pfYUV420P10,
+	YUV422P10 = pfYUV422P10,
+	YUV444P10 = pfYUV444P10,
+	YUV420P16 = pfYUV420P16,
+	YUV422P16 = pfYUV422P16,
+	YUV444P16 = pfYUV444P16,
+	YUV444PH = pfYUV444PH,
+	YUV444PS = pfYUV444PS,
+	YUV420P12 = pfYUV420P12,
+	YUV422P12 = pfYUV422P12,
+	YUV444P12 = pfYUV444P12,
+	YUV420P14 = pfYUV420P14,
+	YUV422P14 = pfYUV422P14,
+	YUV444P14 = pfYUV444P14,
 
-	RGB24 = static_cast<int>(ColorFamilies::RGB) + 10,
-	RGB27,
-	RGB30,
-	RGB48,
-	RGBH,
-	RGBS
+	RGB24 = pfRGB24,
+	RGB27 = pfRGB27,
+	RGB30 = pfRGB30,
+	RGB48 = pfRGB48,
+	RGBH = pfRGBH,
+	RGBS = pfRGBS
 };

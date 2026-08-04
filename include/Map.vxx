@@ -55,7 +55,7 @@ namespace Utility::Map {
 
 	public:
 		auto Type() const {
-			return static_cast<ItemTypes>(UniversalContext::API->propGetType(StorageAccess->Handle, StorageAccess->Key.data()));
+			return static_cast<ItemTypes>(UniversalContext::API->mapGetType(StorageAccess->Handle, StorageAccess->Key.data()));
 		}
 		auto Apply(auto&& PolymorphicFunction) const {
 			using enum ItemTypes;
@@ -97,37 +97,37 @@ namespace Utility::Map {
 	public:
 		template<std::floating_point TargetType>
 		operator TargetType() const {
-			return UniversalContext::API->propGetFloat(StorageAccess->Handle, StorageAccess->Key.data(), Index, nullptr);
+			return UniversalContext::API->mapGetFloat(StorageAccess->Handle, StorageAccess->Key.data(), Index, nullptr);
 		}
 
 	public:
 		template<Countable TargetType>
 		operator TargetType() const {
-			return static_cast<TargetType>(UniversalContext::API->propGetInt(StorageAccess->Handle, StorageAccess->Key.data(), Index, nullptr));
+			return static_cast<TargetType>(UniversalContext::API->mapGetInt(StorageAccess->Handle, StorageAccess->Key.data(), Index, nullptr));
 		}
 
 	public:
 		template<ConstructibleFrom<const char*> TargetType>
 		operator TargetType() const {
-			return { UniversalContext::API->propGetData(StorageAccess->Handle, StorageAccess->Key.data(), Index, nullptr) };
+			return { UniversalContext::API->mapGetData(StorageAccess->Handle, StorageAccess->Key.data(), Index, nullptr) };
 		}
 
 	public:
 		template<SubtypeOf<NodeReference> TargetType>
 		operator TargetType() const {
-			return { UniversalContext::API->propGetNode(StorageAccess->Handle, StorageAccess->Key.data(), Index, nullptr) };
+			return { UniversalContext::API->mapGetNode(StorageAccess->Handle, StorageAccess->Key.data(), Index, nullptr) };
 		}
 
 	public:
 		template<SubtypeOf<FrameReference> TargetType>
 		operator TargetType() const {
-			return { UniversalContext::API->propGetFrame(StorageAccess->Handle, StorageAccess->Key.data(), Index, nullptr) };
+			return { UniversalContext::API->mapGetFrame(StorageAccess->Handle, StorageAccess->Key.data(), Index, nullptr) };
 		}
 
 	public:
 		template<SubtypeOf<FunctionReference> TargetType>
 		operator TargetType() const {
-			return { UniversalContext::API->propGetFunc(StorageAccess->Handle, StorageAccess->Key.data(), Index, nullptr) };
+			return { UniversalContext::API->mapGetFunction(StorageAccess->Handle, StorageAccess->Key.data(), Index, nullptr) };
 		}
 
 	public:
@@ -147,7 +147,7 @@ namespace Utility::Map {
 
 	private:
 		auto QueryStorageSize() const {
-			return Utility::Arithmetic::Max(UniversalContext::API->propNumElements(StorageAccess->Handle, StorageAccess->Key.data()), 0);
+			return Utility::Arithmetic::Max(UniversalContext::API->mapNumElements(StorageAccess->Handle, StorageAccess->Key.data()), 0);
 		}
 		auto Insert(auto&& Entity, auto AppendMode) const {
 			constexpr auto IsIterable = Iterable<decltype(Entity)>;
@@ -156,23 +156,23 @@ namespace Utility::Map {
 			auto InjectValue = [this](auto&& Value) {
 				using ValueType = std::decay_t<decltype(Value)>;
 				if constexpr (std::floating_point<ValueType>)
-					UniversalContext::API->propSetFloat(StorageAccess->Handle, StorageAccess->Key.data(), Value, VSPropAppendMode::paAppend);
+					UniversalContext::API->mapSetFloat(StorageAccess->Handle, StorageAccess->Key.data(), Value, maAppend);
 				else if constexpr (Countable<ValueType>)
-					UniversalContext::API->propSetInt(StorageAccess->Handle, StorageAccess->Key.data(), static_cast<std::int64_t>(Value), VSPropAppendMode::paAppend);
+					UniversalContext::API->mapSetInt(StorageAccess->Handle, StorageAccess->Key.data(), static_cast<std::int64_t>(Value), maAppend);
 				else if constexpr (requires { { Value }->ExplicitlyConvertibleTo<const char*>; })
-					UniversalContext::API->propSetData(StorageAccess->Handle, StorageAccess->Key.data(), static_cast<const char*>(Value), -1, VSPropAppendMode::paAppend);
+					UniversalContext::API->mapSetData(StorageAccess->Handle, StorageAccess->Key.data(), static_cast<const char*>(Value), -1, dtUtf8, maAppend);
 				else if constexpr (requires { { Value.size() }->std::integral; { Value.data() }->std::convertible_to<const char*>; })
-					UniversalContext::API->propSetData(StorageAccess->Handle, StorageAccess->Key.data(), Value.data(), Value.size(), VSPropAppendMode::paAppend);
+					UniversalContext::API->mapSetData(StorageAccess->Handle, StorageAccess->Key.data(), Value.data(), static_cast<int>(Value.size()), dtBinary, maAppend);
 				else if constexpr (SubtypeOf<ValueType, NodeReference>)
-					UniversalContext::API->propSetNode(StorageAccess->Handle, StorageAccess->Key.data(), Value.Handle, VSPropAppendMode::paAppend);
+					UniversalContext::API->mapSetNode(StorageAccess->Handle, StorageAccess->Key.data(), Value.Handle, maAppend);
 				else if constexpr (SubtypeOf<ValueType, FrameReference>)
-					UniversalContext::API->propSetFrame(StorageAccess->Handle, StorageAccess->Key.data(), Value.Handle, VSPropAppendMode::paAppend);
+					UniversalContext::API->mapSetFrame(StorageAccess->Handle, StorageAccess->Key.data(), Value.Handle, maAppend);
 				else if constexpr (SubtypeOf<ValueType, FunctionReference>)
-					UniversalContext::API->propSetFunc(StorageAccess->Handle, StorageAccess->Key.data(), Value.Handle, VSPropAppendMode::paAppend);
+					UniversalContext::API->mapSetFunction(StorageAccess->Handle, StorageAccess->Key.data(), Value.Handle, maAppend);
 				else
 					static_assert(sizeof(Value) == -1, "Item: failed to inject an instance of unrecognized type.");
 			};
-			if (AppendMode == VSPropAppendMode::paReplace)
+			if (AppendMode == maReplace)
 				Erase();
 			if constexpr (requires { { Entity.Type() }->SubtypeOf<ItemTypes>; })
 				for (auto&& x : Entity)
@@ -186,17 +186,17 @@ namespace Utility::Map {
 
 	public:
 		auto Erase() const requires (Readonly == false) {
-			return UniversalContext::API->propDeleteKey(StorageAccess->Handle, StorageAccess->Key.data()) == 1;
+			return UniversalContext::API->mapDeleteKey(StorageAccess->Handle, StorageAccess->Key.data()) == 1;
 		}
 		auto& operator=(auto&& Entity) const requires (Readonly == false) {
 			if constexpr (requires { { Entity.Type() }->SubtypeOf<ItemTypes>; })
 				if (Entity.StorageAccess->Handle == StorageAccess->Handle && Entity.StorageAccess->Key == StorageAccess->Key)
 					return *this;
-			Insert(Entity, VSPropAppendMode::paReplace);
+			Insert(Entity, maReplace);
 			return *this;
 		}
 		auto& operator+=(auto&& Entity) const requires (Readonly == false) {
-			Insert(Entity, VSPropAppendMode::paAppend);
+			Insert(Entity, maAppend);
 			return *this;
 		}
 	};
@@ -205,11 +205,11 @@ namespace Utility::Map {
 		return Reference{ UniversalContext::API->createMap() };
 	}
 	auto ListKeys(auto MapHandle) {
-		auto ItemCount = UniversalContext::API->propNumKeys(MapHandle);
+		auto ItemCount = UniversalContext::API->mapNumKeys(MapHandle);
 		auto Keys = std::vector<std::string_view>{};
 		Keys.resize(ItemCount);
 		for (auto x : Range{ ItemCount })
-			Keys[x] = UniversalContext::API->propGetKey(MapHandle, x);
+			Keys[x] = UniversalContext::API->mapGetKey(MapHandle, x);
 		return Keys;
 	}
 	auto Fill(auto MapHandle, auto&& Key, auto&& Values, auto&& ...Arguments) {
@@ -219,7 +219,7 @@ namespace Utility::Map {
 			Fill(MapHandle, Forward(Arguments)...);
 	}
 	auto CheckForError(auto MapHandle) {
-		auto ErrorMessage = UniversalContext::API->getError(MapHandle);
+		auto ErrorMessage = UniversalContext::API->mapGetError(MapHandle);
 		return std::tuple{ ErrorMessage != nullptr, ErrorMessage };
 	}
 	auto DeduceReturnKey(auto MapHandle, auto Fallback) {
@@ -286,6 +286,6 @@ public:
 	}
 	auto RaiseError(ExplicitlyConvertibleTo<std::string> auto&& FormattedErrorMessage) const {
 		auto ErrorMessage = Utility::ExposeCharPointerIfASCIZCompatibleOrDeepCopyIfNot(FormattedErrorMessage);
-		UniversalContext::API->setError(Handle, Utility::ExtractCharPointerFromASCIZFormattedString(ErrorMessage));
+		UniversalContext::API->mapSetError(Handle, Utility::ExtractCharPointerFromASCIZFormattedString(ErrorMessage));
 	}
 };

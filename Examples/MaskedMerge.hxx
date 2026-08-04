@@ -24,6 +24,9 @@ public:
 	auto SpecifyMetadata() {
 		return Background.ExtractMetadata();
 	}
+	auto SpecifyDependencies() const {
+		return std::array{ Background.SpecifyDependency(rpStrictSpatial), Foreground.SpecifyDependency(rpStrictSpatial), Mask.SpecifyDependency(rpStrictSpatial) };
+	}
 	auto GenerateFrame(auto Index, auto GeneratorContext, auto Core) {
 		auto [BackgroundFrame, ForegroundFrame, MaskFrame] = Node::AcquireFrameGiven<const float>(Index, GeneratorContext).From(Background, Foreground, Mask);
 		auto ProcessedFrame = Core.CreateBlankFrameFrom(BackgroundFrame);

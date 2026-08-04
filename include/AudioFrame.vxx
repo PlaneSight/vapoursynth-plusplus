@@ -1,7 +1,42 @@
 #pragma once
-#include "Frame.vxx"
 
-template<typename SampleType>
-struct AudioFrame : FramePrototype<SampleType> {
-	//Placeholder for API v4.
+#include "Frame.vxx"
+#include "Plane.vxx"
+
+template<typename Sample>
+struct AudioFrame : FramePrototype<Sample>, AudioFormat {
+private:
+	static_assert(!std::same_as<Sample, void>);
+	using PlaneType = Plane<Sample>;
+	using typename FrameReference::HandleType;
+
+public:
+	using FramePrototype<Sample>::Readonly;
+	field(Channels, std::array<PlaneType, 32>{});
+
+	AudioFrame() = default;
+	AudioFrame(ExplicitlyConvertibleTo<HandleType> auto&& Handle) : FramePrototype<Sample>{ Forward(Handle) } {
+		static_cast<AudioFormat&>(*this) = this->QueryAudioFormat();
+		auto Length = static_cast<std::size_t>(UniversalContext::API->getFrameLength(this->Handle));
+		for (auto Channel : Range{ Utility::Arithmetic::Min(static_cast<std::size_t>(ChannelCount), Channels.size()) }) {
+			auto Data = [&] {
+				if constexpr (Readonly)
+					return reinterpret_cast<Sample*>(const_cast<std::uint8_t*>(UniversalContext::API->getReadPtr(this->Handle, Channel)));
+				else
+					return reinterpret_cast<Sample*>(UniversalContext::API->getWritePtr(this->Handle, Channel));
+			}();
+			Channels[Channel] = PlaneType{ 1, Length, static_cast<std::ptrdiff_t>(Length), Data };
+		}
+	}
+
+	auto& operator[](Countable auto Channel) { return Channels[static_cast<std::size_t>(Channel)]; }
+	auto& operator[](Countable auto Channel) const { return Channels[static_cast<std::size_t>(Channel)]; }
+	auto& ExtractFormat() const { return static_cast<const AudioFormat&>(*this); }
+};
+
+template<>
+struct AudioFrame<void> : FramePrototype<void>, AudioFormat {
+	using FramePrototype<void>::FramePrototype;
+	AudioFrame() = default;
+	auto& ExtractFormat() const { return static_cast<const AudioFormat&>(*this); }
 };

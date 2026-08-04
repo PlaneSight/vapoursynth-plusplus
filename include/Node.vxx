@@ -2,7 +2,7 @@
 #include "Frame.vxx"
 #include "FrameGenerator.vxx"
 
-using NodeReference = ResourceManager::Owner<VSNodeRef>;
+using NodeReference = ResourceManager::Owner<VSNode>;
 
 struct Node : NodeReference {
 private:
@@ -162,7 +162,7 @@ public:
 	}
 	auto ExpectFrame(std::integral auto Index) const {
 		auto Expectation = new std::promise<Frame>{};
-		auto Materialize = [](auto ExpectationPointer, auto ExpectedFrame, auto, auto, auto ErrorMessage) {
+		auto Materialize = [](auto ExpectationPointer, auto ExpectedFrame, auto, auto, auto ErrorMessage) VS_CC {
 			auto Expectation = reinterpret_cast<std::promise<Frame>*>(ExpectationPointer);
 			if (ErrorMessage == nullptr)
 				Expectation->set_value(ExpectedFrame);
@@ -184,24 +184,19 @@ public:
 
 public:
 	auto QueryMediaType() const {
-		//Placeholder for API v4.
+		return static_cast<VSMediaType>(UniversalContext::API->getNodeType(Handle));
 	}
 	auto QueryVideoInfo() const {
-		auto [FormatHandle, FrameRateNumerator, FrameRateDenominator, Width, Height, FrameCount, _] = *UniversalContext::API->getVideoInfo(Handle);
-		return VideoInfo{
-			.Format = FormatHandle == nullptr ? VideoFormat::ConstructIndeterminateInstance() : VideoFormat::AdjustToStandardLayout(*FormatHandle),
-			.FrameRateNumerator = FrameRateNumerator, .FrameRateDenominator = FrameRateDenominator,
-			.Width = Width, .Height = Height, .FrameCount = FrameCount
-		};
+		return VideoInfo::FromAPI(*UniversalContext::API->getVideoInfo(Handle));
 	}
 	auto QueryAudioInfo() const {
-		//Placeholder for API v4.
+		return AudioInfo::FromAPI(*UniversalContext::API->getAudioInfo(Handle));
 	}
 	auto QueryCachePolicy() const {
-		if (auto CachePolicy = UniversalContext::API->getVideoInfo(Handle)->flags; CachePolicy & 0x1 != 0)
-			return CacheOptions::Disabled;
-		else
-			return CacheOptions::Automatic;
+		return CacheOptions::Automatic;
+	}
+	auto SpecifyDependency(VSRequestPattern RequestPattern = rpGeneral) const {
+		return VSFilterDependency{ .source = Handle, .requestPattern = RequestPattern };
 	}
 
 public:
@@ -222,9 +217,10 @@ public:
 
 public:
 	explicit operator auto() const {
-		//Placeholder for API v4.
 		auto StringRepresentation = std::ostringstream{};
-		StringRepresentation << "Media Type: Video\n" << static_cast<std::string>(QueryVideoInfo()) << "\n";
+		StringRepresentation << "Media Type: " << (QueryMediaType() == mtVideo ? "Video\n" : "Audio\n");
+		if (QueryMediaType() == mtVideo)
+			StringRepresentation << static_cast<std::string>(QueryVideoInfo()) << "\n";
 		StringRepresentation << "Cache Policy: " << (QueryCachePolicy() == CacheOptions::Automatic ? "Automatic" : "Disabled");
 		return StringRepresentation.str();
 	}

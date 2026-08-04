@@ -38,6 +38,7 @@ public:
 		Metadata.Height = CroppedHeight;
 		return Metadata;
 	}
+	auto SpecifyDependencies() const { return std::array{ InputClip.SpecifyDependency(rpStrictSpatial) }; }
 	auto GenerateFrame(auto Index, auto GeneratorContext, auto Core) {
 		auto DrawGenericFrame = [&](auto&& InputFrame) {
 			using PixelType = std::decay_t<decltype(InputFrame[0][0][0])>;

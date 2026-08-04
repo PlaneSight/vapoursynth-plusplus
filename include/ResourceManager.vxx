@@ -58,21 +58,25 @@ namespace ResourceManager {
 		}
 
 	protected:
-		auto CloneHandle() const {
-			if constexpr (SubtypeOf<HandleType, const VSFrameRef*>)
-				return Utility::PointerQualifiers::DropAll(UniversalContext::API->cloneFrameRef(Handle));
-			if constexpr (SubtypeOf<HandleType, const VSNodeRef*>)
-				return UniversalContext::API->cloneNodeRef(Handle);
-			if constexpr (SubtypeOf<HandleType, const VSFuncRef*>)
-				return UniversalContext::API->cloneFuncRef(Handle);
+		auto CloneHandle() const -> HandleType {
+			if (Handle == NullHandle)
+				return NullHandle;
+			if constexpr (SubtypeOf<HandleType, const VSFrame*>)
+				return static_cast<HandleType>(UniversalContext::API->addFrameRef(Handle));
+			if constexpr (SubtypeOf<HandleType, const VSNode*>)
+				return static_cast<HandleType>(UniversalContext::API->addNodeRef(Handle));
+			if constexpr (SubtypeOf<HandleType, const VSFunction*>)
+				return static_cast<HandleType>(UniversalContext::API->addFunctionRef(Handle));
 		}
 		auto ReleaseHandle() {
-			if constexpr (SubtypeOf<HandleType, const VSFrameRef*>)
+			if (Handle == NullHandle)
+				return;
+			if constexpr (SubtypeOf<HandleType, const VSFrame*>)
 				UniversalContext::API->freeFrame(Handle);
-			if constexpr (SubtypeOf<HandleType, const VSNodeRef*>)
+			if constexpr (SubtypeOf<HandleType, const VSNode*>)
 				UniversalContext::API->freeNode(Handle);
-			if constexpr (SubtypeOf<HandleType, const VSFuncRef*>)
-				UniversalContext::API->freeFunc(Handle);
+			if constexpr (SubtypeOf<HandleType, const VSFunction*>)
+				UniversalContext::API->freeFunction(Handle);
 		}
 	};
 

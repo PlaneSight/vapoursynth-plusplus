@@ -34,15 +34,16 @@ private:
 public:
 	auto operator[](ExplicitlyConvertibleTo<std::string> auto&& FunctionName) const {
 		auto Name = static_cast<std::string>(Forward(FunctionName));
-		auto ParameterList = static_cast<std::string>(Utility::Map::Item<true, false>{ UniversalContext::API->getFunctions(Handle), Name }).erase(0, Name.size() + 1);
-		if (ParameterList.size() > 0)
-			ParameterList.pop_back();
+		auto FunctionHandle = UniversalContext::API->getPluginFunctionByName(Name.data(), Handle);
+		if (FunctionHandle == nullptr)
+			throw std::runtime_error{ "Plugin: function "s + Name + " was not found." };
+		auto ParameterList = static_cast<std::string>(UniversalContext::API->getPluginFunctionArguments(FunctionHandle));
 		return Function{ .PluginHandle = this, .Signature = std::move(Name) + "(" + Utility::SignatureParser::Tokenizer::Replace(std::move(ParameterList), ":data", ":string", ":frame", ":vframe", ":clip", ":vnode", ":opt", "?", ";", ", ", ":", ": ", R"(:([^,]+)(?=,[^:]+:\1(?=,|$)))", "", R"((?![, ])([^:]+): ([^,]+))", "[$1]: $2", R"(\[([^\]|,]+)\]: ([^,]+))", "$1: $2") + ")" };
 	}
 	auto ListFunctions() const {
 		auto FunctionNames = std::vector<std::string>{};
-		for (auto FunctionMap = Utility::Map::Reference{ UniversalContext::API->getFunctions(Handle) }; auto&& x : Utility::Map::ListKeys(FunctionMap.Handle))
-			FunctionNames.push_back(std::string{ x });
+		for (VSPluginFunction* FunctionHandle = nullptr; (FunctionHandle = UniversalContext::API->getNextPluginFunction(FunctionHandle, Handle)) != nullptr;)
+			FunctionNames.emplace_back(UniversalContext::API->getPluginFunctionName(FunctionHandle));
 		return FunctionNames;
 	}
 

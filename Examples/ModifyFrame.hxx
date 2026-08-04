@@ -19,6 +19,7 @@ public:
 	auto SpecifyMetadata() {
 		return InputClip.ExtractMetadata();
 	}
+	auto SpecifyDependencies() const { return std::array{ InputClip.SpecifyDependency(rpStrictSpatial) }; }
 	auto GenerateFrame(auto Index, auto GeneratorContext, auto Core) {
 		auto InputFrame = InputClip.AcquireFrame(Index, GeneratorContext);
 		return static_cast<FrameReference>(Evaluator("src", InputFrame));

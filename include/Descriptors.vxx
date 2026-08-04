@@ -1,5 +1,6 @@
-﻿#pragma once
-#include "VapourSynth.h"
+#pragma once
+
+#include "VapourSynthConfig.vxx"
 #include "Enumerations.vxx"
 #include "Utility.vxx"
 
@@ -13,31 +14,37 @@ struct VideoFormat {
 	field(PlaneCount, 0);
 
 public:
-	static constexpr auto LegacyLayoutOffset = sizeof(VSFormat::name) + sizeof(VSFormat::id);
-	static constexpr auto IndeterminateID = 0;
+	static constexpr auto IndeterminateID = std::uint32_t{ 0 };
 
-public:
 	static auto& ConstructIndeterminateInstance() {
 		static constexpr auto IndeterminateInstance = VideoFormat{};
 		return IndeterminateInstance;
 	}
 
-public:
-	static auto& AdjustToStandardLayout(auto& FormatReference) {
-		if constexpr (SubtypeOf<decltype(FormatReference), VideoFormat>)
-			return FormatReference;
-		else {
-			auto FormatAddress = reinterpret_cast<const char*>(&FormatReference);
-			return *reinterpret_cast<const VideoFormat*>(FormatAddress + LegacyLayoutOffset);
-		}
+	static auto AdjustToStandardLayout(const VideoFormat& FormatReference) {
+		return FormatReference;
 	}
-	static auto& AdjustToLegacyLayout(auto& FormatReference) {
-		if constexpr (SubtypeOf<decltype(FormatReference), VSFormat>)
-			return FormatReference;
-		else {
-			auto FormatAddress = reinterpret_cast<const char*>(&FormatReference);
-			return *reinterpret_cast<const VSFormat*>(FormatAddress - LegacyLayoutOffset);
-		}
+	static auto AdjustToStandardLayout(const VSVideoFormat& FormatReference) {
+		return VideoFormat{
+			.ColorFamily = static_cast<ColorFamilies>(FormatReference.colorFamily * 1000000),
+			.SampleType = static_cast<SampleTypes>(FormatReference.sampleType),
+			.BitsPerSample = FormatReference.bitsPerSample,
+			.BytesPerSample = FormatReference.bytesPerSample,
+			.HorizontalSubsamplingFactor = FormatReference.subSamplingW,
+			.VerticalSubsamplingFactor = FormatReference.subSamplingH,
+			.PlaneCount = FormatReference.numPlanes
+		};
+	}
+	static auto AdjustToLegacyLayout(const VideoFormat& FormatReference) {
+		return VSVideoFormat{
+			.colorFamily = static_cast<int>(FormatReference.ColorFamily) / 1000000,
+			.sampleType = static_cast<int>(FormatReference.SampleType),
+			.bitsPerSample = FormatReference.BitsPerSample,
+			.bytesPerSample = FormatReference.BytesPerSample,
+			.subSamplingW = FormatReference.HorizontalSubsamplingFactor,
+			.subSamplingH = FormatReference.VerticalSubsamplingFactor,
+			.numPlanes = FormatReference.PlaneCount
+		};
 	}
 
 public:
@@ -48,7 +55,7 @@ public:
 		auto BitdepthFlag = (BitsPerSample & 0xFF) << 16;
 		auto HorizontalSubsamplingFlag = (HorizontalSubsamplingFactor & 0xFF) << 8;
 		auto VerticalSubsamplingFlag = VerticalSubsamplingFactor & 0xFF;
-		return ColorFamilyFlag | SampleTypeFlag | BitdepthFlag | HorizontalSubsamplingFlag | VerticalSubsamplingFlag;
+		return static_cast<std::uint32_t>(ColorFamilyFlag | SampleTypeFlag | BitdepthFlag | HorizontalSubsamplingFlag | VerticalSubsamplingFlag);
 	}
 	explicit operator auto() const {
 		using enum ColorFamilies;
@@ -75,43 +82,57 @@ public:
 					return "YUV with HorizontalSubsamplingFactor = " + std::to_string(HorizontalSubsamplingFactor) + ", VerticalSubsamplingFactor = " + std::to_string(VerticalSubsamplingFactor) + ", QuantizationScheme = " + (SampleType == Int ? "Int" : "Float") + std::to_string(BitsPerSample);
 			case Undefined:
 				return "Undefined"s;
-			[[unlikely]] default:
-				throw std::runtime_error{ "VideoFormat: An unrecognized instance has been detected." };
+		[[unlikely]] default:
+				throw std::runtime_error{ "VideoFormat: an unrecognized instance has been detected." };
 		}
 	}
 
-public:
 	auto IsSinglePrecision() const {
 		return SampleType == SampleTypes::Float && BitsPerSample == 32;
 	}
-	auto IsRGB() const {
-		return ColorFamily == ColorFamilies::RGB;
-	}
-	auto IsGray() const {
-		return ColorFamily == ColorFamilies::Gray;
-	}
-	auto IsYUV() const {
-		return ColorFamily == ColorFamilies::YUV;
-	}
-	auto Is444() const {
-		return HorizontalSubsamplingFactor == 0 && VerticalSubsamplingFactor == 0;
-	}
+	auto IsRGB() const { return ColorFamily == ColorFamilies::RGB; }
+	auto IsGray() const { return ColorFamily == ColorFamilies::Gray; }
+	auto IsYUV() const { return ColorFamily == ColorFamilies::YUV; }
+	auto Is444() const { return HorizontalSubsamplingFactor == 0 && VerticalSubsamplingFactor == 0; }
 };
 
-auto operator==(AnyOf<VideoFormat, VSFormat> auto&& LeftHandSideOperand, AnyOf<VideoFormat, VSFormat> auto&& RightHandSideOperand) {
-	auto& PrimaryFormat = VideoFormat::AdjustToStandardLayout(LeftHandSideOperand);
-	auto& ReferenceFormat = VideoFormat::AdjustToStandardLayout(RightHandSideOperand);
+auto operator==(AnyOf<VideoFormat, VSVideoFormat> auto&& LeftHandSideOperand, AnyOf<VideoFormat, VSVideoFormat> auto&& RightHandSideOperand) {
+	auto PrimaryFormat = VideoFormat::AdjustToStandardLayout(LeftHandSideOperand);
+	auto ReferenceFormat = VideoFormat::AdjustToStandardLayout(RightHandSideOperand);
 	return PrimaryFormat.QueryID() == ReferenceFormat.QueryID();
 }
 
-auto operator<=>(AnyOf<VideoFormat, VSFormat> auto&& LeftHandSideOperand, AnyOf<VideoFormat, VSFormat> auto&& RightHandSideOperand) {
-	auto& PrimaryFormat = VideoFormat::AdjustToStandardLayout(LeftHandSideOperand);
-	auto& ReferenceFormat = VideoFormat::AdjustToStandardLayout(RightHandSideOperand);
+auto operator<=>(AnyOf<VideoFormat, VSVideoFormat> auto&& LeftHandSideOperand, AnyOf<VideoFormat, VSVideoFormat> auto&& RightHandSideOperand) {
+	auto PrimaryFormat = VideoFormat::AdjustToStandardLayout(LeftHandSideOperand);
+	auto ReferenceFormat = VideoFormat::AdjustToStandardLayout(RightHandSideOperand);
 	return PrimaryFormat.QueryID() <=> ReferenceFormat.QueryID();
 }
 
 struct AudioFormat {
-	//Placeholder for API v4.
+	field(SampleType, SampleTypes::Int);
+	field(BitsPerSample, 0);
+	field(BytesPerSample, 0);
+	field(ChannelCount, 0);
+	field(ChannelLayout, std::uint64_t{ 0 });
+
+	static auto FromAPI(const VSAudioFormat& FormatReference) {
+		return AudioFormat{
+			.SampleType = static_cast<SampleTypes>(FormatReference.sampleType),
+			.BitsPerSample = FormatReference.bitsPerSample,
+			.BytesPerSample = FormatReference.bytesPerSample,
+			.ChannelCount = FormatReference.numChannels,
+			.ChannelLayout = FormatReference.channelLayout
+		};
+	}
+	static auto ToAPI(const AudioFormat& FormatReference) {
+		return VSAudioFormat{
+			.sampleType = static_cast<int>(FormatReference.SampleType),
+			.bitsPerSample = FormatReference.BitsPerSample,
+			.bytesPerSample = FormatReference.BytesPerSample,
+			.numChannels = FormatReference.ChannelCount,
+			.channelLayout = FormatReference.ChannelLayout
+		};
+	}
 };
 
 struct VideoInfo {
@@ -122,29 +143,39 @@ struct VideoInfo {
 	field(Height, 0);
 	field(FrameCount, 0);
 
-public:
-	static decltype(auto) AdjustToLegacyLayout(auto& MetadataReference, auto Core) {
-		if constexpr (SubtypeOf<decltype(MetadataReference), VSVideoInfo>)
-			return MetadataReference;
-		else {
-			auto& AnchoredFormat = Core.Query(MetadataReference.Format);
-			return VSVideoInfo{
-				.format = AnchoredFormat.QueryID() == VideoFormat::IndeterminateID ? nullptr : &VideoFormat::AdjustToLegacyLayout(AnchoredFormat),
-				.fpsNum = MetadataReference.FrameRateNumerator, .fpsDen = MetadataReference.FrameRateDenominator,
-				.width = MetadataReference.Width, .height = MetadataReference.Height, .numFrames = MetadataReference.FrameCount, .flags = 0
-			};
-		}
+	static auto AdjustToLegacyLayout(const VSVideoInfo& MetadataReference, auto&&...) {
+		return MetadataReference;
+	}
+	static auto AdjustToLegacyLayout(const VideoInfo& MetadataReference, auto&& Core) {
+		auto Format = [&] {
+			if constexpr (requires { Core.Query(MetadataReference.Format); })
+				return Core.Query(MetadataReference.Format);
+			else
+				return MetadataReference.Format;
+		}();
+		return VSVideoInfo{
+			.format = VideoFormat::AdjustToLegacyLayout(Format),
+			.fpsNum = MetadataReference.FrameRateNumerator,
+			.fpsDen = MetadataReference.FrameRateDenominator,
+			.width = MetadataReference.Width,
+			.height = MetadataReference.Height,
+			.numFrames = MetadataReference.FrameCount
+		};
+	}
+	static auto FromAPI(const VSVideoInfo& MetadataReference) {
+		return VideoInfo{
+			.Format = VideoFormat::AdjustToStandardLayout(MetadataReference.format),
+			.FrameRateNumerator = MetadataReference.fpsNum,
+			.FrameRateDenominator = MetadataReference.fpsDen,
+			.Width = MetadataReference.width,
+			.Height = MetadataReference.height,
+			.FrameCount = MetadataReference.numFrames
+		};
 	}
 
-public:
-	auto WithConstantDimensions() const {
-		return Width != 0 && Height != 0;
-	}
-	auto WithConstantFormat() const {
-		return Format.QueryID() != VideoFormat::IndeterminateID;
-	}
+	auto WithConstantDimensions() const { return Width != 0 && Height != 0; }
+	auto WithConstantFormat() const { return Format.QueryID() != VideoFormat::IndeterminateID; }
 
-public:
 	explicit operator auto() const {
 		auto StringRepresentation = std::ostringstream{};
 		StringRepresentation << "Format: " << static_cast<std::string>(Format) << "\n";
@@ -154,17 +185,42 @@ public:
 		else
 			StringRepresentation << "Indeterminate (may vary from frame to frame)\n";
 		StringRepresentation << "Frame Rate: ";
-		if (FrameRateNumerator % FrameRateDenominator == 0)
+		if (FrameRateDenominator != 0 && FrameRateNumerator % FrameRateDenominator == 0)
 			StringRepresentation << FrameRateNumerator / FrameRateDenominator << " fps\n";
-		else
+		else if (FrameRateDenominator != 0)
 			StringRepresentation << FrameRateNumerator << " / " << FrameRateDenominator << " ≈ " << std::fixed << std::setprecision(3) << static_cast<long double>(FrameRateNumerator) / FrameRateDenominator << " fps\n";
+		else
+			StringRepresentation << "Indeterminate\n";
 		StringRepresentation << "Frame Count: " << FrameCount;
 		return StringRepresentation.str();
 	}
 };
 
 struct AudioInfo {
-	//Placeholder for API v4.
+	field(Format, AudioFormat{});
+	field(SampleRate, 0);
+	field(SampleCount, 0_i64);
+	field(FrameCount, 0);
+
+	static auto AdjustToLegacyLayout(const VSAudioInfo& MetadataReference, auto&&...) {
+		return MetadataReference;
+	}
+	static auto FromAPI(const VSAudioInfo& MetadataReference) {
+		return AudioInfo{
+			.Format = AudioFormat::FromAPI(MetadataReference.format),
+			.SampleRate = MetadataReference.sampleRate,
+			.SampleCount = MetadataReference.numSamples,
+			.FrameCount = MetadataReference.numFrames
+		};
+	}
+	static auto AdjustToLegacyLayout(const AudioInfo& MetadataReference, auto&&...) {
+		return VSAudioInfo{
+			.format = AudioFormat::ToAPI(MetadataReference.Format),
+			.sampleRate = MetadataReference.SampleRate,
+			.numSamples = MetadataReference.SampleCount,
+			.numFrames = MetadataReference.FrameCount
+		};
+	}
 };
 
 struct PluginInfo {
@@ -172,7 +228,6 @@ struct PluginInfo {
 	field(Identifier, ""s);
 	field(Description, ""s);
 
-public:
 	explicit operator auto() const {
 		auto StringRepresentation = std::ostringstream{};
 		StringRepresentation << "Namespace: " << Namespace << "\n";
@@ -190,10 +245,9 @@ struct CoreInfo {
 	field(MaxFrameBufferSize, 0_i64);
 	field(UsedFrameBufferSize, 0_i64);
 
-public:
 	explicit operator auto() const {
 		auto StringRepresentation = std::ostringstream{};
-		StringRepresentation << Version << "Thread Count: " << ThreadCount << "\n";
+		StringRepresentation << Version << "\nThread Count: " << ThreadCount << "\n";
 		StringRepresentation << "Frame Buffer Size: currently using " << UsedFrameBufferSize << " bytes out of " << MaxFrameBufferSize << " bytes";
 		return StringRepresentation.str();
 	}
@@ -207,12 +261,7 @@ namespace AlternateRepresentations::Flattened {
 		field(Height, 0);
 		field(FrameCount, 0);
 
-	public:
-		auto WithConstantDimensions() const {
-			return Width != 0 && Height != 0;
-		}
-		auto WithConstantFormat() const {
-			return QueryID() != IndeterminateID;
-		}
+		auto WithConstantDimensions() const { return Width != 0 && Height != 0; }
+		auto WithConstantFormat() const { return QueryID() != IndeterminateID; }
 	};
 }

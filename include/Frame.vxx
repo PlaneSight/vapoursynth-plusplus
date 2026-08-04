@@ -2,7 +2,7 @@
 #include "ResourceManager.vxx"
 #include "Descriptors.vxx"
 
-struct FrameReference : ResourceManager::Owner<VSFrameRef> {
+struct FrameReference : ResourceManager::Owner<VSFrame> {
 	using Owner::Owner;
 
 public:
@@ -27,21 +27,20 @@ public:
 	FramePrototype() = default;
 	FramePrototype(ExplicitlyConvertibleTo<HandleType> auto&& Handle) : FrameReference{ Forward(Handle) } {
 		if constexpr (Readonly)
-			this->PropertyMap = Utility::PointerQualifiers::DropAll(UniversalContext::API->getFramePropsRO(this->Handle));
+			this->PropertyMap = Utility::PointerQualifiers::DropAll(UniversalContext::API->getFramePropertiesRO(this->Handle));
 		else
-			this->PropertyMap = UniversalContext::API->getFramePropsRW(this->Handle);
+			this->PropertyMap = UniversalContext::API->getFramePropertiesRW(this->Handle);
 	}
 
 public:
 	auto QueryMediaType() const {
-		//Placeholder for API v4.
+		return static_cast<VSMediaType>(UniversalContext::API->getFrameType(Handle));
 	}
-	auto& QueryVideoFormat() const {
-		auto FormatHandle = UniversalContext::API->getFrameFormat(Handle);
-		return VideoFormat::AdjustToStandardLayout(*FormatHandle);
+	auto QueryVideoFormat() const {
+		return VideoFormat::AdjustToStandardLayout(*UniversalContext::API->getVideoFrameFormat(Handle));
 	}
 	auto QueryAudioFormat() const {
-		//Placeholder for API v4.
+		return AudioFormat::FromAPI(*UniversalContext::API->getAudioFrameFormat(Handle));
 	}
 	auto Transfer() {
 		return FrameReference{ Leak() };
@@ -59,11 +58,14 @@ public:
 
 public:
 	explicit operator auto() const {
-		//Placeholder for API v4.
 		auto StringRepresentation = std::ostringstream{};
-		StringRepresentation << "Media Type: Video\n";
-		StringRepresentation << "Format: " << static_cast<std::string>(QueryVideoFormat()) << "\n";
-		StringRepresentation << "Resolution: " << UniversalContext::API->getFrameWidth(Handle, 0) << " × " << UniversalContext::API->getFrameHeight(Handle, 0) << "\n---- Properties ----";
+		StringRepresentation << "Media Type: " << (QueryMediaType() == mtVideo ? "Video\n" : "Audio\n");
+		if (QueryMediaType() == mtVideo)
+			StringRepresentation << "Format: " << static_cast<std::string>(QueryVideoFormat()) << "\n"
+				<< "Resolution: " << UniversalContext::API->getFrameWidth(Handle, 0) << " × " << UniversalContext::API->getFrameHeight(Handle, 0) << "\n";
+		else
+			StringRepresentation << "Samples: " << UniversalContext::API->getFrameLength(Handle) << "\n";
+		StringRepresentation << "---- Properties ----";
 		for (auto&& x : ListProperties())
 			StringRepresentation << "\n" << x << ": " << Utility::Map::PrintItem(operator[](x));
 		return StringRepresentation.str();

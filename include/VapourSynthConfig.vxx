@@ -1,0 +1,10 @@
+#pragma once
+
+#ifndef VS_USE_API_42
+#define VS_USE_API_42
+#endif
+
+#include "VapourSynth4.h"
+
+static_assert(VAPOURSYNTH_API_MAJOR == 4, "vsFilterScript requires VapourSynth API 4.");
+static_assert(VAPOURSYNTH_API_MINOR >= 2, "vsFilterScript requires VapourSynth API 4.2 or newer.");

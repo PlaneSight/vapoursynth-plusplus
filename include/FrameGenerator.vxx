@@ -1,5 +1,5 @@
 #pragma once
-#include "VapourSynth.h"
+#include "VapourSynthConfig.vxx"
 #include "Utility.vxx"
 
 namespace FrameGenerator {
@@ -10,9 +10,6 @@ namespace FrameGenerator {
 		field(Status, 0);
 
 	public:
-		auto QueryOutputIndex() const {
-			return UniversalContext::API->getOutputIndex(Handle);
-		}
 		auto RaiseError(ExplicitlyConvertibleTo<std::string> auto&& FormattedErrorMessage) const {
 			auto ErrorMessage = Utility::ExposeCharPointerIfASCIZCompatibleOrDeepCopyIfNot(FormattedErrorMessage);
 			UniversalContext::API->setFilterError(Utility::ExtractCharPointerFromASCIZFormattedString(ErrorMessage), Handle);

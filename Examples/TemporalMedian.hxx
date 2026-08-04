@@ -22,6 +22,7 @@ public:
 	auto SpecifyMetadata() {
 		return InputClip.ExtractMetadata();
 	}
+	auto SpecifyDependencies() const { return std::array{ InputClip.SpecifyDependency(rpNoFrameReuse) }; }
 	auto GenerateFrame(auto Index, auto GeneratorContext, auto Core) {
 		auto InputFrames = InputClip.AcquireFrames<const float>(Index, GeneratorContext);
 		auto ProcessedFrame = Core.CreateBlankFrameFrom(InputFrames[0]);

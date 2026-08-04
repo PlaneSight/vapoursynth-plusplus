@@ -1,0 +1,57 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    name: ${{ matrix.compiler }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch VapourSynth API headers
+        run: git clone --depth=1 https://github.com/vapoursynth/vapoursynth.git "$RUNNER_TEMP/vapoursynth"
+
+      - name: Select compiler
+        id: compiler
+        run: |
+          if [ "${{ matrix.compiler }}" = clang ]; then
+            echo "cxx=clang++" >> "$GITHUB_OUTPUT"
+          else
+            echo "cxx=g++" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compile public adapter and examples
+        run: |
+          "${{ steps.compiler.outputs.cxx }}" -std=c++23 -Wall -Wextra -Wpedantic \
+            -Iinclude -I"$RUNNER_TEMP/vapoursynth/include" \
+            -fsyntax-only Examples/EntryPoint.cxx tests/compile.cxx
+
+      - name: Build and run adapter tests
+        run: |
+          "${{ steps.compiler.outputs.cxx }}" -std=c++23 -Wall -Wextra -Wpedantic \
+            -Iinclude -I"$RUNNER_TEMP/vapoursynth/include" \
+            tests/compile.cxx -o "$RUNNER_TEMP/vsfilterscript-format-test"
+          "$RUNNER_TEMP/vsfilterscript-format-test"
+          "${{ steps.compiler.outputs.cxx }}" -std=c++23 -Wall -Wextra -Wpedantic -fPIC -shared \
+            -Iinclude -I"$RUNNER_TEMP/vapoursynth/include" \
+            Examples/EntryPoint.cxx -o "$RUNNER_TEMP/vsfilterscriptexample.so"
+          "${{ steps.compiler.outputs.cxx }}" -std=c++23 -Wall -Wextra -Wpedantic \
+            -Iinclude -I"$RUNNER_TEMP/vapoursynth/include" \
+            tests/registration.cxx -ldl -o "$RUNNER_TEMP/vsfilterscript-registration-test"
+          "$RUNNER_TEMP/vsfilterscript-registration-test" "$RUNNER_TEMP/vsfilterscriptexample.so"
+          nm -D --defined-only "$RUNNER_TEMP/vsfilterscriptexample.so" | grep -q ' VapourSynthPluginInit2$'
+          "${{ steps.compiler.outputs.cxx }}" -std=c++23 -fPIC -c \
+            -Iinclude -I"$RUNNER_TEMP/vapoursynth/include" \
+            Examples/EntryPoint.cxx -o "$RUNNER_TEMP/entrypoint.o"
+          nm -g --defined-only "$RUNNER_TEMP/entrypoint.o" | grep -E 'VapourSynthPluginInit2$'

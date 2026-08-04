@@ -16,6 +16,7 @@ public:
 	auto SpecifyMetadata() {
 		return InputClip.ExtractMetadata();
 	}
+	auto SpecifyDependencies() const { return std::array{ InputClip.SpecifyDependency(rpStrictSpatial) }; }
 	template<auto ClampAbove = false, auto ClampBelow = false, auto ClampLeft = false, auto ClampRight = false>
 	auto GaussKernel(auto& Channel, auto y, auto x) {
 		auto Above = y - 1;

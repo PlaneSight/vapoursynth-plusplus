@@ -1,177 +1,195 @@
 #pragma once
+
 #include "Plugin.vxx"
 #include "LoggerController.vxx"
 
 struct CoreProxy {
 	field(Handle, static_cast<VSCore*>(nullptr));
 
-public:
 	auto Query() const {
 		auto CoreInfoBuffer = VSCoreInfo{};
-		UniversalContext::API->getCoreInfo2(Handle, &CoreInfoBuffer);
+		UniversalContext::API->getCoreInfo(Handle, &CoreInfoBuffer);
 		return CoreInfo{
-			.Version = CoreInfoBuffer.versionString, .CoreVersion = CoreInfoBuffer.core, .APIVersion = CoreInfoBuffer.api,
+			.Version = CoreInfoBuffer.versionString,
+			.CoreVersion = CoreInfoBuffer.core,
+			.APIVersion = CoreInfoBuffer.api,
 			.ThreadCount = CoreInfoBuffer.numThreads,
-			.MaxFrameBufferSize = CoreInfoBuffer.maxFramebufferSize, .UsedFrameBufferSize = CoreInfoBuffer.usedFramebufferSize
+			.MaxFrameBufferSize = CoreInfoBuffer.maxFramebufferSize,
+			.UsedFrameBufferSize = CoreInfoBuffer.usedFramebufferSize
 		};
 	}
-	auto& Query(AnyOf<VideoFormats, VSPresetFormat> auto FormatID) const {
-		if (auto FormatHandle = UniversalContext::API->getFormatPreset(static_cast<int>(FormatID), Handle); FormatHandle != nullptr)
-			return VideoFormat::AdjustToStandardLayout(*FormatHandle);
-		else
-			return VideoFormat::ConstructIndeterminateInstance();
+
+	auto Query(AnyOf<VideoFormats> auto FormatID) const {
+		auto FormatHandle = VSVideoFormat{};
+		if (UniversalContext::API->getVideoFormatByID(&FormatHandle, static_cast<std::uint32_t>(FormatID), Handle) != 0)
+			return VideoFormat::AdjustToStandardLayout(FormatHandle);
+		return VideoFormat::ConstructIndeterminateInstance();
 	}
-	auto& Query(AnyOf<VideoFormat, VSFormat> auto&& Format) const {
-		auto [ColorFamily, SampleType, BitsPerSample, _, HorizontalSubsamplingFactor, VerticalSubsamplingFactor, __] = VideoFormat::AdjustToStandardLayout(Format);
-		if (auto FormatHandle = UniversalContext::API->registerFormat(static_cast<int>(ColorFamily), static_cast<int>(SampleType), BitsPerSample, HorizontalSubsamplingFactor, VerticalSubsamplingFactor, Handle); FormatHandle != nullptr)
-			return VideoFormat::AdjustToStandardLayout(*FormatHandle);
-		else
-			return VideoFormat::ConstructIndeterminateInstance();
+	auto Query(AnyOf<VideoFormat, VSVideoFormat> auto&& Format) const {
+		auto StandardFormat = VideoFormat::AdjustToStandardLayout(Format);
+		auto FormatHandle = VSVideoFormat{};
+		if (UniversalContext::API->queryVideoFormat(
+				&FormatHandle,
+				static_cast<int>(StandardFormat.ColorFamily) / 1000000,
+				static_cast<int>(StandardFormat.SampleType),
+				StandardFormat.BitsPerSample,
+				StandardFormat.HorizontalSubsamplingFactor,
+				StandardFormat.VerticalSubsamplingFactor,
+				Handle) != 0)
+			return VideoFormat::AdjustToStandardLayout(FormatHandle);
+		return VideoFormat::ConstructIndeterminateInstance();
 	}
-	auto Query(AnyOf<AudioFormat> auto&&) const {
-		//Placeholder for API v4.
+	auto Query(AnyOf<AudioFormat> auto&& Format) const {
+		auto StandardFormat = Format;
+		auto FormatHandle = VSAudioFormat{};
+		if (UniversalContext::API->queryAudioFormat(
+				&FormatHandle,
+				static_cast<int>(StandardFormat.SampleType),
+				StandardFormat.BitsPerSample,
+				StandardFormat.ChannelLayout,
+				Handle) != 0)
+			return AudioFormat::FromAPI(FormatHandle);
 		return AudioFormat{};
 	}
 	auto Query(std::convertible_to<std::string_view> auto&& PluginIdentifier) const {
 		auto Identifier = Utility::ExposeCharPointerIfASCIZCompatibleOrDeepCopyIfNot(PluginIdentifier);
-		auto PluginHandle = UniversalContext::API->getPluginById(Utility::ExtractCharPointerFromASCIZFormattedString(Identifier), Handle);
-		auto PluginDescriptor = [&] {
-			auto PluginDescriptors = ListPlugins();
-			for (auto PluginIndex = 0uz; auto&& [_, LocatedIdentifier, __] : PluginDescriptors)
-				if (LocatedIdentifier == Identifier)
-					return std::move(PluginDescriptors[PluginIndex]);
-				else
-					++PluginIndex;
-			throw std::runtime_error{ "Query: plugin with the specified identifier "s + std::move(Identifier) + " not found." };
-		}();
-		auto PluginPath = [&] {
-			if (auto PathString = UniversalContext::API->getPluginPath(PluginHandle); PathString != nullptr)
-				return std::filesystem::path{ PathString };
-			else
-				return std::filesystem::path{};
-		}();
-		return Plugin{ std::move(PluginDescriptor), PluginHandle, std::move(PluginPath) };
+		auto IdentifierPointer = Utility::ExtractCharPointerFromASCIZFormattedString(Identifier);
+		auto PluginHandle = UniversalContext::API->getPluginByID(IdentifierPointer, Handle);
+		if (PluginHandle == nullptr)
+			throw std::runtime_error{ "Query: plugin with the specified identifier was not found." };
+		auto Descriptor = PluginInfo{
+			.Namespace = UniversalContext::API->getPluginNamespace(PluginHandle),
+			.Identifier = UniversalContext::API->getPluginID(PluginHandle),
+			.Description = UniversalContext::API->getPluginName(PluginHandle)
+		};
+		auto Path = UniversalContext::API->getPluginPath(PluginHandle);
+		return Plugin{ std::move(Descriptor), PluginHandle, Path == nullptr ? std::filesystem::path{} : std::filesystem::path{ Path } };
 	}
 
-public:
 	auto AllocateVideoFrame(auto&& Format, std::integral auto Width, std::integral auto Height) const {
-		auto FormatHandle = [&] {
+		auto StandardFormat = [&] {
 			if constexpr (requires { { Query(Format) }->SubtypeOf<VideoFormat>; })
-				return &VideoFormat::AdjustToLegacyLayout(Query(Format));
+				return Query(Format);
 			else
 				static_assert(sizeof(Format) == -1, "AllocateVideoFrame: failed to recognize the specified format descriptor.");
 		}();
-		return FrameReference{ UniversalContext::API->newVideoFrame(FormatHandle, Width, Height, nullptr, Handle) };
+		auto APIFormat = VideoFormat::AdjustToLegacyLayout(StandardFormat);
+		return FrameReference{ UniversalContext::API->newVideoFrame(&APIFormat, Width, Height, nullptr, Handle) };
 	}
-	auto AllocateAudioFrame(auto&&, auto) const {
-		//Placeholder for API v4.
-		return FrameReference{};
+	auto AllocateAudioFrame(const AudioFormat& Format, std::integral auto SampleCount) const {
+		auto APIFormat = AudioFormat::ToAPI(Format);
+		return FrameReference{ UniversalContext::API->newAudioFrame(&APIFormat, SampleCount, nullptr, Handle) };
 	}
 	auto CreateBlankFrameFrom(SubtypeOf<FrameReference> auto&& ReferenceFrame) const {
 		if constexpr (requires { { ReferenceFrame.ExtractFormat() }->SubtypeOf<VideoFormat>; }) {
 			using PixelType = std::decay_t<decltype(ReferenceFrame[0][0][0])>;
-			auto FormatHandle = &VideoFormat::AdjustToLegacyLayout(Query(ReferenceFrame.ExtractFormat()));
-			auto PropertyHandle = ReferenceFrame.Handle;
-			return VideoFrame<PixelType>{ UniversalContext::API->newVideoFrame(FormatHandle, ReferenceFrame[0].Width, ReferenceFrame[0].Height, PropertyHandle, Handle) };
+			auto StandardFormat = Query(ReferenceFrame.ExtractFormat());
+			auto APIFormat = VideoFormat::AdjustToLegacyLayout(StandardFormat);
+			return VideoFrame<PixelType>{ UniversalContext::API->newVideoFrame(&APIFormat, ReferenceFrame[0].Width, ReferenceFrame[0].Height, ReferenceFrame.Handle, Handle) };
 		}
-		else if constexpr (requires { { ReferenceFrame.ExtractFormat() }->SubtypeOf<AudioFormat>; })
-			//Placeholder for API v4.
-			return AudioFrame<void>{};
+		else if constexpr (requires { { ReferenceFrame.ExtractFormat() }->SubtypeOf<AudioFormat>; }) {
+			using SampleType = std::decay_t<decltype(ReferenceFrame[0][0])>;
+			auto APIFormat = AudioFormat::ToAPI(Query(ReferenceFrame.ExtractFormat()));
+			return AudioFrame<SampleType>{ UniversalContext::API->newAudioFrame(
+				&APIFormat,
+				UniversalContext::API->getFrameLength(ReferenceFrame.Handle),
+				ReferenceFrame.Handle,
+				Handle) };
+		}
 		else
 			return WritableFrame{ UniversalContext::API->copyFrame(ReferenceFrame.Handle, Handle) };
 	}
 	auto ShufflePlanes(auto&& Frames, auto&& PlaneIndexes, AnyOf<ColorFamilies, VSColorFamily> auto ColorFamily) const {
 		auto ValidateInputs = [&](auto& PrimaryFrame, auto PlaneIndex, auto& SubsidiaryPlane1, auto& SubsidiaryPlane2) {
-			static_assert(SubtypeOf<decltype(PrimaryFrame), FrameReference>, "ShufflePlanes: you must specify a frame or any iterable frame container.");
+			static_assert(SubtypeOf<decltype(PrimaryFrame), FrameReference>, "ShufflePlanes: specify frames or an iterable frame container.");
 			static_assert(requires { { PrimaryFrame.ExtractFormat() }->SubtypeOf<VideoFormat>; }, "ShufflePlanes: specified frames must be video frames.");
 			static_assert(Countable<decltype(PlaneIndex)>, "ShufflePlanes: plane index must be an integer.");
 			if (SubsidiaryPlane1.Width != SubsidiaryPlane2.Width || SubsidiaryPlane1.Height != SubsidiaryPlane2.Height)
 				throw std::runtime_error{ "ShufflePlanes: subsidiary planes have inconsistent dimensions." };
 		};
 		auto DeduceFormat = [&](auto& ReferenceFormat, auto& PrimaryPlane, auto& SubsidiaryPlane) {
+			auto APIColorFamily = [&] {
+				if constexpr (std::same_as<std::decay_t<decltype(ColorFamily)>, ColorFamilies>)
+					return static_cast<int>(ColorFamily) / 1000000;
+				else
+					return static_cast<int>(ColorFamily);
+			}();
 			auto Format = VideoFormat{
-				.ColorFamily = static_cast<ColorFamilies>(ColorFamily),
-				.SampleType = ReferenceFormat.SampleType, .BitsPerSample = ReferenceFormat.BitsPerSample,
-				.HorizontalSubsamplingFactor = Utility::Arithmetic::Log2(PrimaryPlane.Width / SubsidiaryPlane.Width), .VerticalSubsamplingFactor = Utility::Arithmetic::Log2(PrimaryPlane.Height / SubsidiaryPlane.Height)
+				.ColorFamily = static_cast<ColorFamilies>(APIColorFamily * 1000000),
+				.SampleType = ReferenceFormat.SampleType,
+				.BitsPerSample = ReferenceFormat.BitsPerSample,
+				.HorizontalSubsamplingFactor = Utility::Arithmetic::Log2(PrimaryPlane.Width / SubsidiaryPlane.Width),
+				.VerticalSubsamplingFactor = Utility::Arithmetic::Log2(PrimaryPlane.Height / SubsidiaryPlane.Height)
 			};
 			if (SubsidiaryPlane.Width << Format.HorizontalSubsamplingFactor != PrimaryPlane.Width || SubsidiaryPlane.Height << Format.VerticalSubsamplingFactor != PrimaryPlane.Height)
-				throw std::runtime_error{ "ShufflePlanes: assembling specified planes leads to invalid subsampling factor." };
-			if (Format.IsRGB())
-				if (Format.HorizontalSubsamplingFactor != 0 || Format.VerticalSubsamplingFactor != 0)
-					throw std::runtime_error{ "ShufflePlanes: RGB cannot be subsampled." };
-			return &VideoFormat::AdjustToLegacyLayout(Query(Format));
+				throw std::runtime_error{ "ShufflePlanes: assembling specified planes leads to an invalid subsampling factor." };
+			if (Format.IsRGB() && (Format.HorizontalSubsamplingFactor != 0 || Format.VerticalSubsamplingFactor != 0))
+				throw std::runtime_error{ "ShufflePlanes: RGB cannot be subsampled." };
+			return VideoFormat::AdjustToLegacyLayout(Query(Format));
 		};
 		auto&& [Frame1, Frame2, Frame3] = Utility::TypeEraseIterableToTriplet(Forward(Frames));
 		auto [x1, x2, x3] = Utility::TypeEraseIterableToTriplet(Forward(PlaneIndexes));
 		ValidateInputs(Frame1, x1, Frame2[x2], Frame3[x3]);
 		using PixelType = std::decay_t<decltype(Frame1[0][0][0])>;
 		auto FormatHandle = DeduceFormat(Frame1.ExtractFormat(), Frame1[x1], Frame2[x2]);
-		auto FrameHandles = std::array{ Frame1.Observe(), Frame2.Observe(), Frame3.Observe() };
+		auto FrameHandles = std::array<const VSFrame*, 3>{ Frame1.Observe(), Frame2.Observe(), Frame3.Observe() };
 		auto Specifiers = std::array{ static_cast<int>(x1), static_cast<int>(x2), static_cast<int>(x3) };
-		auto PropertyHandle = Frame1.Handle;
-		return VideoFrame<PixelType>{ UniversalContext::API->newVideoFrame2(FormatHandle, Frame1[x1].Width, Frame1[x1].Height, FrameHandles.data(), Specifiers.data(), PropertyHandle, Handle) };
+		return VideoFrame<PixelType>{ UniversalContext::API->newVideoFrame2(&FormatHandle, Frame1[x1].Width, Frame1[x1].Height, FrameHandles.data(), Specifiers.data(), Frame1.Handle, Handle) };
 	}
-	auto ShuffleChannels(auto&&, auto&&, auto&&) const {
-		//Placeholder for API v4.
-		return AudioFrame<void>{};
+	auto ShuffleChannels(auto&&, auto&&, auto&&) const -> AudioFrame<void> {
+		throw std::runtime_error{ "CoreProxy::ShuffleChannels is not implemented by the API 4 adapter." };
 	}
 	auto CopyFrame(SubtypeOf<FrameReference> auto&& ReferenceFrame) const {
 		auto FrameHandle = UniversalContext::API->copyFrame(ReferenceFrame.Handle, Handle);
 		if constexpr (requires { { ReferenceFrame.ExtractFormat() }->SubtypeOf<VideoFormat>; })
 			return VideoFrame<std::decay_t<decltype(ReferenceFrame[0][0][0])>>{ FrameHandle };
-		else if constexpr (requires { { ReferenceFrame.ExtractFormat() }->SubtypeOf<AudioFormat>; })
-			//Placeholder for API v4.
-			return AudioFrame<void>{};
+		else if constexpr (requires { { ReferenceFrame.ExtractFormat() }->SubtypeOf<AudioFormat>; }) {
+			using SampleType = std::decay_t<decltype(ReferenceFrame[0][0])>;
+			return AudioFrame<SampleType>{ FrameHandle };
+		}
 		else
 			return WritableFrame{ FrameHandle };
 	}
 
-public:
 	auto Mount(auto&& FunctionEntity) const {
 		using FunctionType = std::decay_t<decltype(FunctionEntity)>;
-		auto FunctionHandle = new auto{ Forward(FunctionEntity) };
-		auto FunctionRecycler = [](auto FunctionPointer) {
-			auto Garbage = reinterpret_cast<FunctionType*>(FunctionPointer);
-			delete Garbage;
-		};
-		auto FunctionProxy = [](auto InputMap, auto OutputMap, auto FunctionPointer, auto CoreHandle, auto...) {
+		auto FunctionHandle = new FunctionType{ Forward(FunctionEntity) };
+		auto FunctionRecycler = [](void* FunctionPointer) VS_CC { delete static_cast<FunctionType*>(FunctionPointer); };
+		auto FunctionProxy = [](const VSMap* InputMap, VSMap* OutputMap, void* FunctionPointer, VSCore* CoreHandle, const VSAPI* API) VS_CC {
+			UniversalContext::InstallAPI(API);
 			auto Arguments = ArgumentList{ .Handle = InputMap };
-			auto FunctionHandle = reinterpret_cast<FunctionType*>(FunctionPointer);
 			auto Core = CoreProxy{ .Handle = CoreHandle };
+			auto& MountedFunction = *static_cast<FunctionType*>(FunctionPointer);
 			auto FunctionInvoker = [&] {
-				if constexpr (auto& MountedFunction = *FunctionHandle; requires { MountedFunction(); })
+				if constexpr (requires { MountedFunction(); })
 					return MountedFunction();
 				else if constexpr (requires { MountedFunction(Arguments); })
 					return MountedFunction(Arguments);
 				else if constexpr (requires { MountedFunction(Arguments, Core); })
 					return MountedFunction(Arguments, Core);
 				else
-					static_assert(sizeof(MountedFunction) == -1, "Mount: failed to mount the specified object, it is either not callable or has an incompatible signature.");
+					static_assert(sizeof(MountedFunction) == -1, "Mount: the specified object has an incompatible signature.");
 			};
 			try {
-				if constexpr (auto ResultItem = Utility::Map::Item<false>{ OutputMap, "val" }; requires { { FunctionInvoker() }->AnyBut<void>; })
-					ResultItem += FunctionInvoker();
+				if constexpr (requires { { FunctionInvoker() }->AnyBut<void>; })
+					Utility::Map::Item<false>{ OutputMap, "val" } += FunctionInvoker();
 				else
 					FunctionInvoker();
 			}
-			catch (std::exception& ErrorMessage) {
-				UniversalContext::API->setError(OutputMap, ErrorMessage.what());
+			catch (const std::exception& ErrorMessage) {
+				UniversalContext::API->mapSetError(OutputMap, ErrorMessage.what());
 			}
 		};
-		return Function{ UniversalContext::API->createFunc(FunctionProxy, FunctionHandle, FunctionRecycler, Handle, UniversalContext::API) };
+		return Function{ UniversalContext::API->createFunction(FunctionProxy, FunctionHandle, FunctionRecycler, Handle) };
 	}
 
-public:
 	auto InstallLogger(auto&& MessageLogger) const {
 		using LoggerType = std::decay_t<decltype(MessageLogger)>;
-		auto LoggerHandle = new auto{ Forward(MessageLogger) };
-		auto LoggerRecycler = [](auto LoggerPointer) {
-			auto Garbage = reinterpret_cast<LoggerType*>(LoggerPointer);
-			delete Garbage;
-		};
-		auto LoggerProxy = [](auto MessageType, auto Message, auto LoggerPointer) {
-			auto LoggerHandle = reinterpret_cast<LoggerType*>(LoggerPointer);
-			if constexpr (auto& InstalledLogger = *LoggerHandle; requires { InstalledLogger(""sv); })
+		auto LoggerHandle = new LoggerType{ Forward(MessageLogger) };
+		auto LoggerRecycler = [](void* LoggerPointer) VS_CC { delete static_cast<LoggerType*>(LoggerPointer); };
+		auto LoggerProxy = [](int MessageType, const char* Message, void* LoggerPointer) VS_CC {
+			auto& InstalledLogger = *static_cast<LoggerType*>(LoggerPointer);
+			if constexpr (requires { InstalledLogger(""sv); })
 				InstalledLogger(std::string_view{ Message });
 			else if constexpr (requires { InstalledLogger(Message); })
 				InstalledLogger(Message);
@@ -179,80 +197,49 @@ public:
 				InstalledLogger(static_cast<MessageTypes>(MessageType), std::string_view{ Message });
 			else if constexpr (requires { InstalledLogger(MessageTypes::Debug, Message); })
 				InstalledLogger(static_cast<MessageTypes>(MessageType), Message);
-			else if constexpr (requires { InstalledLogger(VSMessageType::mtDebug, ""sv); })
-				InstalledLogger(static_cast<VSMessageType>(MessageType), std::string_view{ Message });
-			else if constexpr (requires { InstalledLogger(VSMessageType::mtDebug, Message); })
-				InstalledLogger(static_cast<VSMessageType>(MessageType), Message);
 			else
-				static_assert(sizeof(InstalledLogger) == -1, "InstallLogger: failed to install the specified logger, it is either not callable or has an incompatible signature.");
+				static_assert(sizeof(InstalledLogger) == -1, "InstallLogger: the specified logger has an incompatible signature.");
 		};
-		auto LoggerID = UniversalContext::API->addMessageHandler(LoggerProxy, LoggerRecycler, LoggerHandle);
-		auto VirtualLoggerHandle = static_cast<std::intptr_t>(~LoggerID);
-		return LoggerController{ .Handle = reinterpret_cast<VSLogHandle*>(VirtualLoggerHandle) };
+		auto LogHandle = UniversalContext::API->addLogHandler(LoggerProxy, LoggerRecycler, LoggerHandle, Handle);
+		return LoggerController{ .Handle = LogHandle, .Core = Handle };
 	}
 	auto LogMessage(AnyOf<MessageTypes, VSMessageType> auto MessageType, ExplicitlyConvertibleTo<std::string> auto&& Message) const {
 		auto FormattedMessage = static_cast<std::string>(Forward(Message));
-		UniversalContext::API->logMessage(static_cast<int>(MessageType), FormattedMessage.data());
+		UniversalContext::API->logMessage(static_cast<int>(MessageType), FormattedMessage.data(), Handle);
 	}
-	auto DebugPrint(ExplicitlyConvertibleTo<std::string> auto&& Message) const {
-		LogMessage(MessageTypes::Debug, Message);
-	}
-	auto Print(ExplicitlyConvertibleTo<std::string> auto&& Message) const {
-		LogMessage(MessageTypes::Information, Message);
-	}
-	auto Alert(ExplicitlyConvertibleTo<std::string> auto&& Message) const {
-		LogMessage(MessageTypes::Warning, Message);
-	}
-	auto CriticalAlert(ExplicitlyConvertibleTo<std::string> auto&& Message) const {
-		LogMessage(MessageTypes::Critical, Message);
-	}
-	auto Abort(ExplicitlyConvertibleTo<std::string> auto&& Message) const {
-		LogMessage(MessageTypes::Fatal, Message);
-	}
+	auto DebugPrint(ExplicitlyConvertibleTo<std::string> auto&& Message) const { LogMessage(MessageTypes::Debug, Forward(Message)); }
+	auto Print(ExplicitlyConvertibleTo<std::string> auto&& Message) const { LogMessage(MessageTypes::Information, Forward(Message)); }
+	auto Alert(ExplicitlyConvertibleTo<std::string> auto&& Message) const { LogMessage(MessageTypes::Warning, Forward(Message)); }
+	auto CriticalAlert(ExplicitlyConvertibleTo<std::string> auto&& Message) const { LogMessage(MessageTypes::Critical, Forward(Message)); }
+	auto Abort(ExplicitlyConvertibleTo<std::string> auto&& Message) const { LogMessage(MessageTypes::Fatal, Forward(Message)); }
 
-public:
-	auto SetMaxCacheSize(std::integral auto Bytes) const {
-		return UniversalContext::API->setMaxCacheSize(Bytes, Handle);
-	}
-	auto SetThreadCount(std::integral auto Threads) const {
-		return UniversalContext::API->setThreadCount(Threads, Handle);
-	}
+	auto SetMaxCacheSize(std::integral auto Bytes) const { return UniversalContext::API->setMaxCacheSize(Bytes, Handle); }
+	auto SetThreadCount(std::integral auto Threads) const { return UniversalContext::API->setThreadCount(Threads, Handle); }
 	auto ListPlugins() const {
 		auto PluginDescriptors = std::vector<PluginInfo>{};
-		auto ReconstructDescriptorFromStringRepresentation = [](auto&& StringRepresentation) {
-			auto NamespaceSector = StringRepresentation.find(";");
-			auto IdentifierSector = StringRepresentation.find(";", NamespaceSector + 1);
-			auto Namespace = StringRepresentation.substr(0, NamespaceSector);
-			auto Identifier = StringRepresentation.substr(NamespaceSector + 1, IdentifierSector - NamespaceSector - 1);
-			auto Description = StringRepresentation.substr(IdentifierSector + 1, StringRepresentation.size() - Namespace.size() - Identifier.size());
-			return PluginInfo{ .Namespace = std::string{ Namespace }, .Identifier = std::string{ Identifier }, .Description = std::string{ Description } };
-		};
-		for (auto PluginMap = Utility::Map::Reference{ UniversalContext::API->getPlugins(Handle) }; auto&& x : Utility::Map::ListKeys(PluginMap.Handle))
-			PluginDescriptors.push_back(ReconstructDescriptorFromStringRepresentation(static_cast<std::string_view>(Utility::Map::Item{ PluginMap.Handle, x })));
+		for (VSPlugin* PluginHandle = nullptr; (PluginHandle = UniversalContext::API->getNextPlugin(PluginHandle, Handle)) != nullptr;)
+			PluginDescriptors.push_back(PluginInfo{
+				.Namespace = UniversalContext::API->getPluginNamespace(PluginHandle),
+				.Identifier = UniversalContext::API->getPluginID(PluginHandle),
+				.Description = UniversalContext::API->getPluginName(PluginHandle)
+			});
 		return PluginDescriptors;
 	}
 	auto operator[](ExplicitlyConvertibleTo<std::string> auto&& PluginNamespace) const {
 		auto Namespace = Utility::ExposeCharPointerIfASCIZCompatibleOrDeepCopyIfNot(PluginNamespace);
-		auto PluginHandle = UniversalContext::API->getPluginByNs(Utility::ExtractCharPointerFromASCIZFormattedString(Namespace), Handle);
-		auto PluginDescriptor = [&] {
-			auto PluginDescriptors = ListPlugins();
-			for (auto PluginIndex = 0uz; auto&& [LocatedNamespace, _, __] : PluginDescriptors)
-				if (LocatedNamespace == Namespace)
-					return std::move(PluginDescriptors[PluginIndex]);
-				else
-					++PluginIndex;
-			throw std::runtime_error{ "Core: No attribute with the name "s + std::move(Namespace) + " exists. Missing plugin?" };
-		}();
-		auto PluginPath = [&] {
-			if (auto PathString = UniversalContext::API->getPluginPath(PluginHandle); PathString != nullptr)
-				return std::filesystem::path{ PathString };
-			else
-				return std::filesystem::path{};
-		}();
-		return Plugin{ std::move(PluginDescriptor), PluginHandle, std::move(PluginPath) };
+		auto NamespacePointer = Utility::ExtractCharPointerFromASCIZFormattedString(Namespace);
+		auto PluginHandle = UniversalContext::API->getPluginByNamespace(NamespacePointer, Handle);
+		if (PluginHandle == nullptr)
+			throw std::runtime_error{ "Core: plugin namespace was not found." };
+		auto Descriptor = PluginInfo{
+			.Namespace = UniversalContext::API->getPluginNamespace(PluginHandle),
+			.Identifier = UniversalContext::API->getPluginID(PluginHandle),
+			.Description = UniversalContext::API->getPluginName(PluginHandle)
+		};
+		auto Path = UniversalContext::API->getPluginPath(PluginHandle);
+		return Plugin{ std::move(Descriptor), PluginHandle, Path == nullptr ? std::filesystem::path{} : std::filesystem::path{ Path } };
 	}
 
-public:
 	explicit operator auto() const {
 		auto StringRepresentation = std::ostringstream{};
 		StringRepresentation << static_cast<std::string>(Query()) << "\n---- Plugin List ----";
@@ -266,7 +253,6 @@ struct CoreInstantiator : CoreProxy {
 private:
 	using CoreReference = ResourceManager::Tracker<VSCore>;
 
-public:
 	field(ResourceGuard, std::shared_ptr<CoreReference>{});
 
 public:

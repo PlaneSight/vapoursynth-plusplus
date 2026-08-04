@@ -1,13 +1,8 @@
-project('vsFilterScript', 'cpp', 
-    default_options: ['buildtype=release', 'b_ndebug=if-release', 'cpp_std=c++2a'],
-    version : '2'
+project('vsFilterScript', 'cpp',
+    default_options : ['buildtype=release', 'b_ndebug=if-release', 'cpp_std=c++23', 'warning_level=3'],
+    version : '3.0'
 )
 
-if host_machine.cpu_family().startswith('x86')
-  add_project_arguments('-mfpmath=sse', '-msse2', language : 'cpp')
-endif
-
-pkg = import('pkgconfig')
 deps = dependency('vapoursynth')
 
 incdir = include_directories('include')
@@ -15,24 +10,29 @@ incdir = include_directories('include')
 test_plug = ['Examples/EntryPoint.cxx']
 
 headers = [
-    'include/AudioFrame.vxx',
-    'include/AudioNode.vxx',
+	'include/AudioFrame.vxx',
+	'include/AudioNode.vxx',
     'include/Core.vxx',
     'include/Frame.vxx',
-    'include/Function.vxx',
-    'include/Globals.vxx',
-    'include/Infrastructure.vxx',
-    'include/Interface.vxx',
-    'include/Map.vxx',
-    'include/Metadata.vxx',
-    'include/Node.vxx',
-    'include/Plane.vxx',
-    'include/Plugin.vxx',
-    'include/Range.vxx',
-    'include/ResourceManager.vxx',
-    'include/Utility.vxx',
-    'include/VideoFrame.vxx',
-    'include/VideoNode.vxx',
+	'include/Function.vxx',
+	'include/Infrastructure.vxx',
+	'include/Map.vxx',
+	'include/Node.vxx',
+	'include/Plane.vxx',
+	'include/Plugin.vxx',
+	'include/PluginInstantiator.vxx',
+	'include/Range.vxx',
+	'include/ResourceManager.vxx',
+	'include/Utility.vxx',
+	'include/VapourSynthConfig.vxx',
+	'include/UniversalContext.vxx',
+	'include/VideoFrame.vxx',
+	'include/VideoNode.vxx',
+	'include/Descriptors.vxx',
+	'include/Enumerations.vxx',
+	'include/FrameGenerator.vxx',
+	'include/LoggerController.vxx',
+	'include/RemappingFunctions.vxx',
 ]
 
 examples = [
@@ -40,12 +40,13 @@ examples = [
     'Examples/EntryPoint.cxx',
     'Examples/GaussBlurFast.hxx',
     'Examples/GaussBlur.hxx',
-    'Examples/ModifyFrameExample.vpy',
-    'Examples/ModifyFrame.hxx',
-    'Examples/nnedi3_rpow2.hxx',
-    'Examples/Palette.hxx',
-    'Examples/Rec601ToRGB.hxx',
-    'Examples/TemporalMedian.hxx',
+	'Examples/ModifyFrameExample.vpy',
+	'Examples/ModifyFrame.hxx',
+	'Examples/Palette.hxx',
+	'Examples/Rec601ToRGB.hxx',
+	'Examples/SeparableConvolution.hxx',
+	'Examples/TemporalMedian.hxx',
+	'Examples/MaskedMerge.hxx',
 ]
 
 if get_option('install_examples')
@@ -53,19 +54,41 @@ if get_option('install_examples')
 endif
 
 if get_option('build_examples')
-    shared_module('vsfilterscriptexample',
+    example_plugin = shared_module('vsfilterscriptexample',
         test_plug,
         include_directories : incdir,
         dependencies : deps,
         gnu_symbol_visibility : 'hidden',
-        install_dir : join_paths(deps.get_pkgconfig_variable('libdir'), 'vapoursynth'),
+        install_dir : join_paths(get_option('libdir'), 'vapoursynth'),
         install : true
     )
+
+    if host_machine.system() != 'windows'
+        registration_test_dependencies = []
+        if host_machine.system() == 'linux'
+            registration_test_dependencies += meson.get_compiler('cpp').find_library('dl')
+        endif
+        registration_test = executable(
+            'vsfilterscript-registration-test',
+            'tests/registration.cxx',
+            include_directories : incdir,
+            dependencies : [deps] + registration_test_dependencies
+        )
+        test('plugin-registration', registration_test, args : [example_plugin.full_path()])
+    endif
 endif
+
+format_test = executable(
+    'vsfilterscript-format-test',
+    'tests/compile.cxx',
+    include_directories : incdir,
+    dependencies : deps
+)
+test('format-adapter', format_test)
 
 install_headers(headers, subdir : 'vsFilterScript')
 
-pkg.generate(
+import('pkgconfig').generate(
     name : 'vsfilterscript',
     subdirs : 'vsFilterScript',
     version : meson.project_version(),

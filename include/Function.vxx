@@ -2,7 +2,7 @@
 #include "Utility.vxx"
 #include "ResourceManager.vxx"
 
-using FunctionReference = ResourceManager::Owner<VSFuncRef>;
+using FunctionReference = ResourceManager::Owner<VSFunction>;
 
 struct Function : FunctionReference {
 	Function() = default;
@@ -15,7 +15,7 @@ public:
 		auto ResultObserver = ResultMap.Handle;
 		if constexpr (sizeof...(Arguments) != 0)
 			Utility::Map::Fill(ArgumentMap.Handle, Forward(Arguments)...);
-		UniversalContext::API->callFunc(Handle, ArgumentMap.Handle, ResultObserver, nullptr, nullptr);
+		UniversalContext::API->callFunction(Handle, ArgumentMap.Handle, ResultObserver);
 		if (auto [EvaluationFailed, ErrorMessage] = Utility::Map::CheckForError(ResultObserver); EvaluationFailed)
 			throw std::runtime_error{ ErrorMessage };
 		return Utility::Map::Item<true, false>{ ResultMap.Leak(), Utility::Map::DeduceReturnKey(ResultObserver, "val"sv) };

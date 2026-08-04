@@ -1,6 +1,18 @@
 #pragma once
-#include "VapourSynth.h"
+
+#include <mutex>
+
+#include "VapourSynthConfig.vxx"
 
 namespace UniversalContext {
-	auto API = static_cast<const VSAPI*>(nullptr);
+	inline auto API = static_cast<const VSAPI*>(nullptr);
+	inline auto APIInstallation = std::once_flag{};
+
+	auto InstallAPI(const VSAPI* NewAPI) {
+		if (NewAPI == nullptr)
+			throw std::runtime_error{ "VapourSynth API initialization returned a null API table." };
+		std::call_once(APIInstallation, [NewAPI] { API = NewAPI; });
+		if (API != NewAPI)
+			throw std::runtime_error{ "VapourSynth callbacks supplied inconsistent API tables." };
+	}
 }
