@@ -32,6 +32,12 @@ uv run --group build meson test -C build-runtime --print-errorlogs
 
 VAPOURSYNTH_PLUSPLUS_EXAMPLE=build-runtime/libvapoursynth-plusplus-example.so \
     uv run --group runtime-test vspipe --info tests/examples/runtime.vpy -
+
+uv run --group runtime-test python -m tools.example_catalog \
+    --plugin build-runtime/libvapoursynth-plusplus-example.so \
+    --check
 ```
 
-Adjust the plugin path and module suffix for the host platform.
+The second command requests frames from every example and compares the rendered
+pixels with the documentation assets. Adjust the plugin path and module suffix
+for the host platform.

@@ -39,6 +39,20 @@ The script loads the plugin, creates a frame with `test.Palette`, requests
 that frame, and checks its dimensions and sample value. Adjust the library
 suffix for the host platform.
 
+## Generate the visual catalog
+
+The catalog images exercise every example filter against synthetic VapourSynth
+clips. Generate the committed assets with:
+
+```bash
+uv run --group runtime-test python -m tools.example_catalog \
+    --plugin build-examples/libvapoursynth-plusplus-example.so
+```
+
+Add `--check` to regenerate in memory and fail if the committed dimensions or
+RGB pixels differ. CI runs that mode against VapourSynth R78, making the visual
+documentation part of the runtime compatibility contract.
+
 ## Read the implementations
 
 Start with [Palette](palette.md) for a source filter or

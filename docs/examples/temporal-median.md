@@ -9,6 +9,14 @@ description: Request a relative window of frames and compute a per-pixel median.
 
 [View `TemporalMedian.hxx` on GitHub](https://github.com/PlaneSight/vapoursynth-plusplus/blob/master/examples/src/TemporalMedian.hxx)
 
+## Before and after
+
+| Inverted centre frame | Radius-one median output |
+| --- | --- |
+| ![Inverted temporal outlier before TemporalMedian](../assets/example-catalog/temporal-median-before.png) | ![Restored checkerboard after TemporalMedian](../assets/example-catalog/temporal-median-after.png) |
+
+The synthetic input contains `normal, inverted, normal`. At every coordinate, two of the three samples carry the normal value, so the median rejects the centre-frame outlier.
+
 ## Declare the frame request plan
 
 ```cpp
@@ -22,7 +30,7 @@ TemporalMedian(auto Arguments) {
     if (Arguments["radius"].Exists())
         Radius = Arguments["radius"];
 
-    InputClip.FrameRequestor = [this](auto Index) {
+    InputClip.FrameRequestor = [Radius = Radius](auto Index) {
         return Range{ Index - Radius, Index + Radius + 1 };
     };
 
@@ -38,7 +46,7 @@ TemporalMedian(auto Arguments) {
 }
 ```
 
-`Range` uses an exclusive upper bound, so radius 1 requests `n - 1`, `n`, and `n + 1`. Keeping the request rule on `InputClip` lets acquisition use the same relative-index model later.
+`Range` uses an exclusive upper bound, so radius 1 requests `n - 1`, `n`, and `n + 1`. The lambda captures the validated radius value because the filter object is moved into VapourSynth-owned storage after construction; capturing the constructor's `this` would leave the request plan referring to the old object. Keeping the request rule on `InputClip` lets acquisition use the same relative-index model later.
 
 ```cpp
 auto SpecifyMetadata() {
@@ -85,4 +93,3 @@ denoised = core.test.TemporalMedian(clip, radius=2)
 
 !!! warning "Temporal boundaries are part of the algorithm"
     A production filter must deliberately define requests before frame 0 and after the final frame. Clamping, mirroring, shortening the window, and rejecting the request produce different results.
-

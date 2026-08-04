@@ -9,6 +9,14 @@ description: Generate a finite GrayS clip without an input node.
 
 [View `Palette.hxx` on GitHub](https://github.com/PlaneSight/vapoursynth-plusplus/blob/master/examples/src/Palette.hxx)
 
+## Generated frames
+
+`Palette` has no input clip. The demonstration selects the first and last frames from `shades=[0.08, 0.28, 0.50, 0.72, 0.92]`.
+
+| Frame 0 | Frame 4 |
+| --- | --- |
+| ![Dark first Palette frame](../assets/example-catalog/palette-first.png) | ![Light final Palette frame](../assets/example-catalog/palette-last.png) |
+
 ## Complete filter
 
 ```cpp
@@ -79,4 +87,3 @@ The result contains five frames. Frame 0 is black, frame 2 is middle gray, and f
 
 !!! tip "Try this next"
     Add a `fpsnum` argument. Validate that it is positive, use it in `SpecifyMetadata`, and leave frame generation unchanged. This separates clip-level metadata from per-frame pixel work.
-

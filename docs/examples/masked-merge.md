@@ -9,6 +9,14 @@ description: Validate and acquire three clips as one typed operation.
 
 [View `MaskedMerge.hxx` on GitHub](https://github.com/PlaneSight/vapoursynth-plusplus/blob/master/examples/src/MaskedMerge.hxx)
 
+## Before and after
+
+| Background | Masked foreground blend |
+| --- | --- |
+| ![Background color stripes before MaskedMerge](../assets/example-catalog/masked-merge-before.png) | ![Blended color stripes after MaskedMerge](../assets/example-catalog/masked-merge-after.png) |
+
+The foreground reverses the background's color progression. A soft horizontal mask reaches full strength near the centre and zero toward the edges, making all three input roles visible in the result.
+
 ## Establish compatible inputs
 
 ```cpp
@@ -88,4 +96,3 @@ merged = core.test.MaskedMerge(clipa=background, clipb=foreground, mask=mask)
 
 !!! note "Range policy"
     The formula does not clamp the mask. Values outside `[0, 1]` extrapolate rather than blend. Whether to validate, clamp, or deliberately permit that behavior is an API decision.
-

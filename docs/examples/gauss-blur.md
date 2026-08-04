@@ -9,6 +9,14 @@ description: Read a clamped 3x3 neighborhood through Plane::View.
 
 [View `GaussBlur.hxx` on GitHub](https://github.com/PlaneSight/vapoursynth-plusplus/blob/master/examples/src/GaussBlur.hxx)
 
+## Before and after
+
+| Synthetic GrayS input | `GaussBlur` output |
+| --- | --- |
+| ![Sharp checkerboard before GaussBlur](../assets/example-catalog/gauss-blur-before.png) | ![Smoothed checkerboard after GaussBlur](../assets/example-catalog/gauss-blur-after.png) |
+
+The hard checkerboard transitions expose both the 3×3 smoothing and the filter's border-remapping behavior.
+
 ## Complete filter
 
 ```cpp
@@ -92,4 +100,3 @@ blurred.set_output()
 
 !!! note "Correct first, specialized later"
     This implementation favors a uniform, readable loop. Compare [GaussBlurFast](gauss-blur-fast.md) to see how explicit boundary regions trade simplicity for lower per-sample overhead.
-

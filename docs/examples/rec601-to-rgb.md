@@ -9,6 +9,14 @@ description: Convert YUV444PS to RGBS and enforce frame-property semantics.
 
 [View `Rec601ToRGB.hxx` on GitHub](https://github.com/PlaneSight/vapoursynth-plusplus/blob/master/examples/src/Rec601ToRGB.hxx)
 
+## Before and after
+
+| Stored Y, Cb, Cr values | Converted RGB output |
+| --- | --- |
+| ![False-color view of Y, Cb, and Cr values before Rec601ToRGB](../assets/example-catalog/rec601-to-rgb-before.png) | ![RGB color stripes after Rec601ToRGB](../assets/example-catalog/rec601-to-rgb-after.png) |
+
+The left image is a false-color diagnostic: Y, Cb + 0.5, and Cr + 0.5 are mapped to display channels so all three stored planes are visible. It is not an RGB interpretation of the input. The generator independently converts the same reference colors to YUV and checks the plugin's RGB output sample-for-sample.
+
 ## Validate the structural format
 
 ```cpp
@@ -95,4 +103,3 @@ rgb = core.test.Rec601ToRGB(yuv)
 
 !!! warning "Educational scope"
     This example handles one matrix, full range, 4:4:4 sampling, and floating-point samples. General color conversion also needs transfer characteristics, primaries, chroma location, range scaling, and numerical-policy decisions. Use a production color-management filter when those cases matter.
-

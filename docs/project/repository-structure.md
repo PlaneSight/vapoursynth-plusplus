@@ -18,6 +18,8 @@ one canonical root and is grouped by the contract under test.
 ├── examples/
 │   └── src/          Demonstration plugin and filters
 ├── docs/             Authored Zensical pages
+├── tools/
+│   └── example_catalog/  Reproducible documentation image generator
 ├── meson.build       Library build and install contract
 ├── pyproject.toml    uv tool groups
 ├── uv.lock           Pinned build and documentation tools
@@ -27,9 +29,11 @@ one canonical root and is grouped by the contract under test.
 ## Dependency direction
 
 `examples/` and `tests/` may include `include/`. Public headers never depend on
-examples, tests, documentation, or build output. The example project has its
-own Meson entry point, while its verification sources remain in the single
-test root. Consumer-only assumptions cannot leak into the library build.
+examples, tests, tools, documentation, or build output. The example project has
+its own Meson entry point, while its verification sources remain in the single
+test root. `tools/example_catalog/` consumes the built plugin and owns only the
+reproducible documentation-image pipeline. Consumer-only assumptions cannot
+leak into the library build.
 
 ## Generated state
 

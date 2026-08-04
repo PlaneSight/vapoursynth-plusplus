@@ -9,6 +9,14 @@ description: Compose two one-dimensional passes through nested filter calls.
 
 [View `SeparableConvolution.hxx` on GitHub](https://github.com/PlaneSight/vapoursynth-plusplus/blob/master/examples/src/SeparableConvolution.hxx)
 
+## Before and after
+
+| Synthetic GrayS input | Two-pass output |
+| --- | --- |
+| ![Sharp checkerboard before SeparableConvolution](../assets/example-catalog/separable-convolution-before.png) | ![Smoothed checkerboard after SeparableConvolution](../assets/example-catalog/separable-convolution-after.png) |
+
+Both passes use `[1, 2, 1]`. The horizontal result is transposed, processed by the same one-dimensional implementation, then transposed back.
+
 ## Public workflow
 
 ```cpp
@@ -110,4 +118,3 @@ blurred = core.test.SeparableConvolution(
 
 !!! warning "Kernel normalization"
     A kernel whose weights sum to zero makes `NormalizationFactor` zero. Derivative kernels need a different normalization policy; they cannot be enabled safely by accepting arbitrary values without changing this contract.
-

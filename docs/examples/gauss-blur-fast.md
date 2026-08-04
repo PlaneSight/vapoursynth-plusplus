@@ -9,6 +9,14 @@ description: Separate image boundaries from the hot interior loop.
 
 [View `GaussBlurFast.hxx` on GitHub](https://github.com/PlaneSight/vapoursynth-plusplus/blob/master/examples/src/GaussBlurFast.hxx)
 
+## Before and after
+
+| Synthetic GrayS input | `GaussBlurFast` output |
+| --- | --- |
+| ![Sharp checkerboard before GaussBlurFast](../assets/example-catalog/gauss-blur-fast-before.png) | ![Smoothed checkerboard after GaussBlurFast](../assets/example-catalog/gauss-blur-fast-after.png) |
+
+The generator proves parity with `GaussBlur` throughout the image interior. The examples deliberately use different one-pixel border policies: `Plane::View` remapping here versus explicit clamping below.
+
 ## Boundary-specialized kernel
 
 ```cpp
@@ -99,4 +107,3 @@ specialized = core.test.GaussBlurFast(clip)
 ```
 
 Use representative clips and a numeric comparison before treating specialization as equivalent. Benchmark only after correctness has an independent oracle.
-

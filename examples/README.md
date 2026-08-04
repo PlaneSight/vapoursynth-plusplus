@@ -36,3 +36,17 @@ VAPOURSYNTH_PLUSPLUS_EXAMPLE=build-examples/libvapoursynth-plusplus-example.so \
 Adjust the module suffix for the host platform. `src/` contains only the
 example plugin and filter implementations; all verification code has one
 canonical home under `../tests/`.
+
+## Visual catalog
+
+The repository-level generator dogfoods all nine filters and writes the images
+used by the documentation catalog:
+
+```bash
+uv run --group runtime-test python -m tools.example_catalog \
+    --plugin build-examples/libvapoursynth-plusplus-example.so
+```
+
+Run it with `--check` to verify the committed pixels without rewriting files.
+The generator lives under `tools/` because it produces documentation artifacts;
+it is not plugin source or a second test root.

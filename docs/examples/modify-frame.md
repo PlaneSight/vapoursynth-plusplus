@@ -9,6 +9,14 @@ description: Invoke a VapourSynth function from a frame-generating filter.
 
 [View `ModifyFrame.hxx` on GitHub](https://github.com/PlaneSight/vapoursynth-plusplus/blob/master/examples/src/ModifyFrame.hxx)
 
+## Before and after
+
+| Input frame | Frame returned by the callback |
+| --- | --- |
+| ![Color stripes before ModifyFrame](../assets/example-catalog/modify-frame-before.png) | ![Inverted color stripes returned by the callback](../assets/example-catalog/modify-frame-after.png) |
+
+For this visual test, the Python evaluator copies the acquired frame and inverts every floating-point sample. The C++ filter does not perform that pixel operation; its responsibility is to pass `src` across the function boundary and publish the returned frame.
+
 ## Complete filter
 
 ```cpp

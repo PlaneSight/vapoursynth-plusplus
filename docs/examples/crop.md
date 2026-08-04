@@ -9,6 +9,14 @@ description: Change frame dimensions and dispatch over supported sample types.
 
 [View `Crop.hxx` on GitHub](https://github.com/PlaneSight/vapoursynth-plusplus/blob/master/examples/src/Crop.hxx)
 
+## Before and after
+
+| 240 × 128 input | 192 × 96 output |
+| --- | --- |
+| ![Full striped frame before Crop](../assets/example-catalog/crop-before.png) | ![Smaller striped frame after Crop](../assets/example-catalog/crop-after.png) |
+
+The demonstration removes 32 pixels from the left, 16 from the right, and 16 from both the top and bottom. The output image is shown at its actual dimensions.
+
 ## Arguments and validation
 
 ```cpp
@@ -112,4 +120,3 @@ cropped = core.test.Crop(clip, left=16, right=16, top=8, bottom=8)
 
 !!! note "Why 4:4:4 is the honest boundary"
     In a subsampled format, luma coordinates do not map one-to-one to chroma coordinates. Supporting it requires explicit divisibility, plane-size, and chroma-location decisions rather than merely deleting the `Is444()` check.
-

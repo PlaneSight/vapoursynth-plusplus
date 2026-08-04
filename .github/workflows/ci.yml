@@ -136,3 +136,9 @@ jobs:
         env:
           VAPOURSYNTH_PLUSPLUS_EXAMPLE: ${{ github.workspace }}/build-runtime/libvapoursynth-plusplus-example.so
         run: uv run --group runtime-test vspipe --info tests/examples/runtime.vpy -
+
+      - name: Verify generated example catalog
+        run: |
+          uv run --group runtime-test python -m tools.example_catalog \
+            --plugin build-runtime/libvapoursynth-plusplus-example.so \
+            --check
