@@ -1,11 +1,17 @@
 #pragma once
 #include "VideoNode.vxx"
 #include "AudioNode.vxx"
-#include "Function.vxx"
+
+struct Function;
 
 namespace Utility::Map {
 	template<auto NonOwning = false>
 	using Reference = ResourceManager::Tracker<VSMap, NonOwning>;
+
+	template<typename ResourceWrapper>
+	auto RenderResource(auto&& Handle) -> std::string {
+		return static_cast<std::string>(ResourceWrapper{ Forward(Handle) });
+	}
 
 	template<auto Readonly, auto NonOwning>
 	struct Item {
@@ -201,10 +207,10 @@ namespace Utility::Map {
 		}
 	};
 
-	auto Create() {
-		return Reference{ UniversalContext::API->createMap() };
+	auto Create() -> Reference<> {
+		return Reference<>{ UniversalContext::API->createMap() };
 	}
-	auto ListKeys(auto MapHandle) {
+	auto ListKeys(const VSMap* MapHandle) -> std::vector<std::string_view> {
 		auto ItemCount = UniversalContext::API->mapNumKeys(MapHandle);
 		auto Keys = std::vector<std::string_view>{};
 		Keys.resize(ItemCount);
@@ -212,17 +218,17 @@ namespace Utility::Map {
 			Keys[x] = UniversalContext::API->mapGetKey(MapHandle, x);
 		return Keys;
 	}
-	auto Fill(auto MapHandle, auto&& Key, auto&& Values, auto&& ...Arguments) {
+	auto Fill(auto MapHandle, auto&& Key, auto&& Values, auto&& ...Arguments) -> void {
 		auto ItemStorage = Item<false>{ MapHandle, Forward(Key) };
 		ItemStorage += Values;
 		if constexpr (sizeof...(Arguments) != 0)
 			Fill(MapHandle, Forward(Arguments)...);
 	}
-	auto CheckForError(auto MapHandle) {
+	auto CheckForError(const VSMap* MapHandle) -> std::tuple<bool, const char*> {
 		auto ErrorMessage = UniversalContext::API->mapGetError(MapHandle);
 		return std::tuple{ ErrorMessage != nullptr, ErrorMessage };
 	}
-	auto DeduceReturnKey(auto MapHandle, auto Fallback) {
+	auto DeduceReturnKey(const VSMap* MapHandle, std::string_view Fallback) -> std::string_view {
 		if (auto CandidateKeys = ListKeys(MapHandle); CandidateKeys.size() == 1) [[likely]]
 			return CandidateKeys[0];
 		else
@@ -242,7 +248,7 @@ namespace Utility::Map {
 			else if constexpr (requires { { Value }->SubtypeOf<FrameReference>; })
 				return IndentStructuredRepresentation(static_cast<std::string>(Frame{ Value.Leak() }));
 			else if constexpr (requires { { Value }->SubtypeOf<FunctionReference>; })
-				return IndentStructuredRepresentation(static_cast<std::string>(Function{ Value.Leak() }));
+				return IndentStructuredRepresentation(RenderResource<Function>(Value.Leak()));
 		};
 		if (ItemInstance.size() > 1) {
 			auto StringRepresentation = "["s;
@@ -257,6 +263,8 @@ namespace Utility::Map {
 	}
 }
 
+#include "Function.vxx"
+
 struct ArgumentList {
 	field(Handle, static_cast<const VSMap*>(nullptr));
 
@@ -269,7 +277,7 @@ public:
 	}
 
 public:
-	explicit operator auto() const {
+	explicit operator std::string() const {
 		auto StringRepresentation = std::ostringstream{};
 		for (auto&& x : ListSpecifiedParameters())
 			StringRepresentation << "\n" << x << ": " << Utility::Map::PrintItem(operator[](x));

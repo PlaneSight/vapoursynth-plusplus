@@ -216,7 +216,7 @@ public:
 	}
 
 public:
-	explicit operator auto() const {
+	explicit operator std::string() const {
 		auto StringRepresentation = std::ostringstream{};
 		StringRepresentation << "Media Type: " << (QueryMediaType() == mtVideo ? "Video\n" : "Audio\n");
 		if (QueryMediaType() == mtVideo)

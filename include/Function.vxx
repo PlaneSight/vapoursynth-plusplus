@@ -2,8 +2,6 @@
 #include "Utility.vxx"
 #include "ResourceManager.vxx"
 
-using FunctionReference = ResourceManager::Owner<VSFunction>;
-
 struct Function : FunctionReference {
 	Function() = default;
 	Function(ExplicitlyConvertibleTo<HandleType> auto&& Handle) : FunctionReference{ Forward(Handle) } {}
@@ -22,7 +20,7 @@ public:
 	}
 
 public:
-	explicit operator auto() const {
+	explicit operator std::string() const {
 		auto StringRepresentation = std::ostringstream{};
 		StringRepresentation << "Mount Point: " << Handle << "\n";
 		StringRepresentation << "Signature: n/a";

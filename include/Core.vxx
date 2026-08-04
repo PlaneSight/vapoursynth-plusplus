@@ -240,7 +240,7 @@ struct CoreProxy {
 		return Plugin{ std::move(Descriptor), PluginHandle, Path == nullptr ? std::filesystem::path{} : std::filesystem::path{ Path } };
 	}
 
-	explicit operator auto() const {
+	explicit operator std::string() const {
 		auto StringRepresentation = std::ostringstream{};
 		StringRepresentation << static_cast<std::string>(Query()) << "\n---- Plugin List ----";
 		for (auto&& [Namespace, Identifier, Description] : ListPlugins())

@@ -104,7 +104,7 @@ namespace Utility::PointerQualifiers {
 
 namespace Utility::Reflection::Private {
 	template<typename>
-	consteval auto EmbedTypeNameIntoSignature() {
+	inline auto EmbedTypeNameIntoSignature() -> std::string_view {
 		return std::string_view{ std::source_location::current().function_name() };
 	}
 	template<typename, typename>
@@ -125,11 +125,11 @@ namespace Utility::Reflection::Private {
 
 namespace Utility::Reflection {
 	template<typename UnknownType>
-	consteval auto ReifyTypeNameIntoString() {
-		constexpr auto SignatureTemplate = Private::EmbedTypeNameIntoSignature<double>();
-		constexpr auto EmbeddingSignature = Private::EmbedTypeNameIntoSignature<UnknownType>();
-		constexpr auto CaptionLength = SignatureTemplate.find("double");
-		constexpr auto EnclosureLength = SignatureTemplate.size() - CaptionLength - "double"sv.size();
+	inline auto ReifyTypeNameIntoString() -> std::string_view {
+		const auto SignatureTemplate = Private::EmbedTypeNameIntoSignature<double>();
+		const auto EmbeddingSignature = Private::EmbedTypeNameIntoSignature<UnknownType>();
+		const auto CaptionLength = SignatureTemplate.find("double");
+		const auto EnclosureLength = SignatureTemplate.size() - CaptionLength - "double"sv.size();
 		return EmbeddingSignature.substr(CaptionLength, EmbeddingSignature.size() - CaptionLength - EnclosureLength);
 	}
 	template<typename ReferenceContainerType, typename TargetElementType>
@@ -274,17 +274,4 @@ namespace Utility::SignatureParser {
 		else
 			return static_cast<std::string>(Forward(Fallback));
 	}
-}
-
-namespace Utility::Map {
-	template<auto = true, auto = true>
-	struct Item;
-
-	auto Create();
-	auto ListKeys(auto);
-	auto Fill(auto, auto&&, auto&&, auto&&...);
-	auto CheckForError(auto);
-	auto DeduceReturnKey(auto, auto);
-	// GCC bug, fixme
-	auto PrintItem(auto&&)->std::string;
 }

@@ -122,6 +122,24 @@ namespace ResourceManager {
 		}
 	};
 
+}
+
+using FunctionReference = ResourceManager::Owner<VSFunction>;
+
+namespace Utility::Map {
+	template<auto = true, auto = true>
+	struct Item;
+
+	auto Create() -> ResourceManager::Tracker<VSMap, false>;
+	auto ListKeys(const VSMap*) -> std::vector<std::string_view>;
+	auto Fill(auto, auto&&, auto&&, auto&&...) -> void;
+	auto CheckForError(const VSMap*) -> std::tuple<bool, const char*>;
+	auto DeduceReturnKey(const VSMap*, std::string_view) -> std::string_view;
+	auto PrintItem(auto&&) -> std::string;
+}
+
+namespace ResourceManager {
+
 	struct GarbageCollector {
 		using RecyclerType = auto(*)(void*)->void;
 		using GarbageRecord = std::tuple<RecyclerType, void*>;

@@ -21,10 +21,10 @@ public:
 		return IndeterminateInstance;
 	}
 
-	static auto AdjustToStandardLayout(const VideoFormat& FormatReference) {
+	static auto AdjustToStandardLayout(const VideoFormat& FormatReference) -> VideoFormat {
 		return FormatReference;
 	}
-	static auto AdjustToStandardLayout(const VSVideoFormat& FormatReference) {
+	static auto AdjustToStandardLayout(const VSVideoFormat& FormatReference) -> VideoFormat {
 		return VideoFormat{
 			.ColorFamily = static_cast<ColorFamilies>(FormatReference.colorFamily * 1000000),
 			.SampleType = static_cast<SampleTypes>(FormatReference.sampleType),
@@ -35,7 +35,7 @@ public:
 			.PlaneCount = FormatReference.numPlanes
 		};
 	}
-	static auto AdjustToLegacyLayout(const VideoFormat& FormatReference) {
+	static auto AdjustToLegacyLayout(const VideoFormat& FormatReference) -> VSVideoFormat {
 		return VSVideoFormat{
 			.colorFamily = static_cast<int>(FormatReference.ColorFamily) / 1000000,
 			.sampleType = static_cast<int>(FormatReference.SampleType),
@@ -57,7 +57,7 @@ public:
 		auto VerticalSubsamplingFlag = VerticalSubsamplingFactor & 0xFF;
 		return static_cast<std::uint32_t>(ColorFamilyFlag | SampleTypeFlag | BitdepthFlag | HorizontalSubsamplingFlag | VerticalSubsamplingFlag);
 	}
-	explicit operator auto() const {
+	explicit operator std::string() const {
 		using enum ColorFamilies;
 		using enum SampleTypes;
 		switch (auto QuantizationSuffix = SampleType == Int ? ColorFamily == RGB ? std::to_string(3 * BitsPerSample) : std::to_string(BitsPerSample) : BitsPerSample == 32 ? "S"s : "H"s; ColorFamily) {
@@ -96,13 +96,13 @@ public:
 	auto Is444() const { return HorizontalSubsamplingFactor == 0 && VerticalSubsamplingFactor == 0; }
 };
 
-auto operator==(AnyOf<VideoFormat, VSVideoFormat> auto&& LeftHandSideOperand, AnyOf<VideoFormat, VSVideoFormat> auto&& RightHandSideOperand) {
+auto operator==(AnyOf<VideoFormat, VSVideoFormat> auto&& LeftHandSideOperand, AnyOf<VideoFormat, VSVideoFormat> auto&& RightHandSideOperand) -> bool {
 	auto PrimaryFormat = VideoFormat::AdjustToStandardLayout(LeftHandSideOperand);
 	auto ReferenceFormat = VideoFormat::AdjustToStandardLayout(RightHandSideOperand);
 	return PrimaryFormat.QueryID() == ReferenceFormat.QueryID();
 }
 
-auto operator<=>(AnyOf<VideoFormat, VSVideoFormat> auto&& LeftHandSideOperand, AnyOf<VideoFormat, VSVideoFormat> auto&& RightHandSideOperand) {
+auto operator<=>(AnyOf<VideoFormat, VSVideoFormat> auto&& LeftHandSideOperand, AnyOf<VideoFormat, VSVideoFormat> auto&& RightHandSideOperand) -> std::strong_ordering {
 	auto PrimaryFormat = VideoFormat::AdjustToStandardLayout(LeftHandSideOperand);
 	auto ReferenceFormat = VideoFormat::AdjustToStandardLayout(RightHandSideOperand);
 	return PrimaryFormat.QueryID() <=> ReferenceFormat.QueryID();
@@ -115,7 +115,7 @@ struct AudioFormat {
 	field(ChannelCount, 0);
 	field(ChannelLayout, std::uint64_t{ 0 });
 
-	static auto FromAPI(const VSAudioFormat& FormatReference) {
+	static auto FromAPI(const VSAudioFormat& FormatReference) -> AudioFormat {
 		return AudioFormat{
 			.SampleType = static_cast<SampleTypes>(FormatReference.sampleType),
 			.BitsPerSample = FormatReference.bitsPerSample,
@@ -124,7 +124,7 @@ struct AudioFormat {
 			.ChannelLayout = FormatReference.channelLayout
 		};
 	}
-	static auto ToAPI(const AudioFormat& FormatReference) {
+	static auto ToAPI(const AudioFormat& FormatReference) -> VSAudioFormat {
 		return VSAudioFormat{
 			.sampleType = static_cast<int>(FormatReference.SampleType),
 			.bitsPerSample = FormatReference.BitsPerSample,
@@ -143,10 +143,10 @@ struct VideoInfo {
 	field(Height, 0);
 	field(FrameCount, 0);
 
-	static auto AdjustToLegacyLayout(const VSVideoInfo& MetadataReference, auto&&...) {
+	static auto AdjustToLegacyLayout(const VSVideoInfo& MetadataReference, auto&&...) -> VSVideoInfo {
 		return MetadataReference;
 	}
-	static auto AdjustToLegacyLayout(const VideoInfo& MetadataReference, auto&& Core) {
+	static auto AdjustToLegacyLayout(const VideoInfo& MetadataReference, auto&& Core) -> VSVideoInfo {
 		auto Format = [&] {
 			if constexpr (requires { Core.Query(MetadataReference.Format); })
 				return Core.Query(MetadataReference.Format);
@@ -162,7 +162,7 @@ struct VideoInfo {
 			.numFrames = MetadataReference.FrameCount
 		};
 	}
-	static auto FromAPI(const VSVideoInfo& MetadataReference) {
+	static auto FromAPI(const VSVideoInfo& MetadataReference) -> VideoInfo {
 		return VideoInfo{
 			.Format = VideoFormat::AdjustToStandardLayout(MetadataReference.format),
 			.FrameRateNumerator = MetadataReference.fpsNum,
@@ -176,7 +176,7 @@ struct VideoInfo {
 	auto WithConstantDimensions() const { return Width != 0 && Height != 0; }
 	auto WithConstantFormat() const { return Format.QueryID() != VideoFormat::IndeterminateID; }
 
-	explicit operator auto() const {
+	explicit operator std::string() const {
 		auto StringRepresentation = std::ostringstream{};
 		StringRepresentation << "Format: " << static_cast<std::string>(Format) << "\n";
 		StringRepresentation << "Resolution: ";
@@ -202,10 +202,10 @@ struct AudioInfo {
 	field(SampleCount, 0_i64);
 	field(FrameCount, 0);
 
-	static auto AdjustToLegacyLayout(const VSAudioInfo& MetadataReference, auto&&...) {
+	static auto AdjustToLegacyLayout(const VSAudioInfo& MetadataReference, auto&&...) -> VSAudioInfo {
 		return MetadataReference;
 	}
-	static auto FromAPI(const VSAudioInfo& MetadataReference) {
+	static auto FromAPI(const VSAudioInfo& MetadataReference) -> AudioInfo {
 		return AudioInfo{
 			.Format = AudioFormat::FromAPI(MetadataReference.format),
 			.SampleRate = MetadataReference.sampleRate,
@@ -213,7 +213,7 @@ struct AudioInfo {
 			.FrameCount = MetadataReference.numFrames
 		};
 	}
-	static auto AdjustToLegacyLayout(const AudioInfo& MetadataReference, auto&&...) {
+	static auto AdjustToLegacyLayout(const AudioInfo& MetadataReference, auto&&...) -> VSAudioInfo {
 		return VSAudioInfo{
 			.format = AudioFormat::ToAPI(MetadataReference.Format),
 			.sampleRate = MetadataReference.SampleRate,
@@ -228,7 +228,7 @@ struct PluginInfo {
 	field(Identifier, ""s);
 	field(Description, ""s);
 
-	explicit operator auto() const {
+	explicit operator std::string() const {
 		auto StringRepresentation = std::ostringstream{};
 		StringRepresentation << "Namespace: " << Namespace << "\n";
 		StringRepresentation << "Identifier: " << Identifier << "\n";
@@ -245,7 +245,7 @@ struct CoreInfo {
 	field(MaxFrameBufferSize, 0_i64);
 	field(UsedFrameBufferSize, 0_i64);
 
-	explicit operator auto() const {
+	explicit operator std::string() const {
 		auto StringRepresentation = std::ostringstream{};
 		StringRepresentation << Version << "\nThread Count: " << ThreadCount << "\n";
 		StringRepresentation << "Frame Buffer Size: currently using " << UsedFrameBufferSize << " bytes out of " << MaxFrameBufferSize << " bytes";

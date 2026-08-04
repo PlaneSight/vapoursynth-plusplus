@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <cmath>
 #include <cstdlib>
+#include <compare>
 
 #define field(FieldIdentifier, ...) std::decay_t<decltype(__VA_ARGS__)> FieldIdentifier = __VA_ARGS__
 #define Forward(...) std::forward<decltype(__VA_ARGS__)>(__VA_ARGS__)

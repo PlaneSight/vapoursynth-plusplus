@@ -90,7 +90,7 @@ private:
 		}
 
 	public:
-		explicit operator auto() const {
+		explicit operator std::string() const {
 			auto StringRepresentation = std::ostringstream{};
 			StringRepresentation << "Resolution: " << TargetPlane->Width << " × " << TargetPlane->Height << "\n";
 			StringRepresentation << "Absolute Coordinates of the Origin: { y = " << yOffset << ", x = " << xOffset << " }\n";
@@ -115,7 +115,7 @@ public:
 	}
 
 public:
-	explicit operator auto() const {
+	explicit operator std::string() const {
 		auto StringRepresentation = std::ostringstream{};
 		StringRepresentation << "Resolution: " << this->Width << " × " << this->Height << "\n";
 		StringRepresentation << "Sample Type: " << (std::integral<PixelType> ? "Int" : "Float") << "\n";
