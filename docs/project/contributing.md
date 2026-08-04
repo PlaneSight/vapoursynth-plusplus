@@ -5,43 +5,51 @@ description: Build, validate, and document changes to vapoursynth-plusplus.
 
 # Contributing
 
-Keep changes small enough to review and explicit enough that the ownership, scheduling, and
-format assumptions are visible in the code.
+Keep changes small enough to review and explicit enough that ownership,
+scheduling, and format assumptions remain visible.
 
-## Validate a change
+## Validate C++ behavior
 
-For C++ changes:
+```bash
+uv sync --group build --locked
 
-~~~bash
-meson setup build -Dbuild_examples=true
-ninja -C build
-meson test -C build
-~~~
+uv run --group build meson setup build-library
+uv run --group build meson compile -C build-library
+uv run --group build meson test -C build-library --print-errorlogs
 
-For documentation changes:
+uv run --group build meson setup build-examples examples
+uv run --group build meson compile -C build-examples
+uv run --group build meson test -C build-examples --print-errorlogs
+```
 
-~~~bash
-uv sync
-uv run zensical serve
-uv run zensical build --clean --strict
-~~~
+Use `meson setup --reconfigure` for an existing directory after changing
+options. Build directories are disposable and ignored; authored files must
+never be generated into `include/`, `examples/`, `tests/`, or `docs/`.
 
-The documentation build is also run by .github/workflows/docs.yml and deployed to GitHub Pages
-from master.
+## Validate documentation
+
+```bash
+uv sync --group docs --locked
+uv run --group docs zensical serve
+uv run --group docs zensical build --clean --strict
+```
+
+The strict build runs in `.github/workflows/docs.yml` before GitHub Pages is
+deployed from `master`.
 
 ## Documentation expectations
 
-- Document the reader's task before listing implementation details.
-- Keep signatures, format restrictions, scheduling policies, and ownership rules aligned with the
-  headers and examples.
-- Link reference pages to the source header or example that defines the behavior.
-- Prefer a focused page for a concept or public type over a large undifferentiated manual.
-- Treat site/ and local Python environments as generated files.
+- Start from the reader's task or decision.
+- Keep signatures, format restrictions, scheduling, and ownership aligned with
+  the headers and executable examples.
+- Link reference pages to the source that defines the behavior.
+- Give distinct public concepts focused pages instead of accumulating a manual.
+- Treat `site/`, `.venv/`, and `build-*/` as generated local state.
 
 ## C++ expectations
 
-- Prefer the existing wrapper types and conventions before introducing a new abstraction.
+- Reuse the existing wrapper types and conventions.
 - Validate unsupported formats and dimensions at construction.
 - Declare frame dependencies explicitly.
 - Return owned frame wrappers from frame generators.
-- Keep API calls at the adapter boundary and preserve the project's C++23 baseline.
+- Keep API calls at adapter boundaries and preserve the C++23 baseline.

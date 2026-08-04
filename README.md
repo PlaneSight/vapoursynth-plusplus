@@ -11,28 +11,32 @@ boundaries.
 ## Requirements
 
 - VapourSynth API 4.2 or newer
-- C++23 compiler
-- Meson and Ninja
+- A C++23 compiler
+- [uv](https://docs.astral.sh/uv/)
 
-The SDK header is selected through `VapourSynthConfig.vxx`, which requests the
-API 4.2 declaration set and rejects older SDKs at compile time.
+uv installs the pinned Meson and Ninja versions used by CI. The VapourSynth SDK
+can be discovered through pkg-config or supplied as a header directory.
 
-## Compilation
-### Linux
+## Build and test
 
-```
-$ meson setup build
-$ ninja -C build
-```
-
-Build the example plugin explicitly when using a custom SDK installation:
-
-```
-meson setup build -Dbuild_examples=true
-ninja -C build
+```bash
+uv sync --group build --locked
+uv run --group build meson setup build-library
+uv run --group build meson compile -C build-library
+uv run --group build meson test -C build-library --print-errorlogs
 ```
 
-The plugin exports `VapourSynthPluginInit2`, the API 4 entry point. Example
-filters declare their input dependencies explicitly through
-`Node::SpecifyDependency`, allowing API 4 to configure scheduling and cache
-behavior without hidden global state.
+Build the independently configured example plugin:
+
+```bash
+uv run --group build meson setup build-examples examples
+uv run --group build meson compile -C build-examples
+uv run --group build meson test -C build-examples --print-errorlogs
+```
+
+Pass `-Dvapoursynth_include_dir=/path/to/vapoursynth/include` to either setup
+command when pkg-config metadata is unavailable.
+
+The [documentation](https://planesight.github.io/vapoursynth-plusplus/) covers
+installation, filter lifecycle, scheduling, ownership, the public adapters,
+and the example catalogue.

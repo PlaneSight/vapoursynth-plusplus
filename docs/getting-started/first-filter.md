@@ -17,7 +17,7 @@ the smallest useful filter contract:
 
 ## Implement the filter
 
-Create Examples/Invert.hxx:
+Create `examples/src/Invert.hxx`:
 
 ~~~cpp
 #pragma once
@@ -76,7 +76,7 @@ pixel access and validation contract.
 
 ## Register the filter
 
-Include the header in Examples/EntryPoint.cxx and register the type:
+Include the header in `examples/src/EntryPoint.cxx` and register the type:
 
 ~~~cpp
 #include "Invert.hxx"
@@ -100,16 +100,18 @@ list from Signature and publishes a clip:vnode; return value by default.
 
 ## Compile and test
 
-Add the new header to the examples list in meson.build, then rebuild:
+The example project discovers the header through `EntryPoint.cxx`. Update the
+expected registration count in `examples/tests/registration.cxx`, then build
+and run the independent example tests:
 
 ~~~bash
-meson setup build -Dbuild_examples=true
-ninja -C build
-meson test -C build
+uv run --group build meson setup build-examples examples
+uv run --group build meson compile -C build-examples
+uv run --group build meson test -C build-examples --print-errorlogs
 ~~~
 
-The repository's registration test checks that the plugin can be loaded and that each registered
-function exposes a non-empty name, argument list, and clip:vnode; return signature.
+The registration test loads the built plugin and checks that each function
+exposes a non-empty name, argument list, and `clip:vnode;` return signature.
 
 ## Use it from VapourSynth
 

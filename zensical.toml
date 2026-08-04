@@ -2,21 +2,27 @@
 site_name = "vapoursynth-plusplus"
 site_description = "A C++23, header-oriented layer for authoring VapourSynth API 4 filters."
 site_url = "https://planesight.github.io/vapoursynth-plusplus/"
+docs_dir = "docs"
+site_dir = "site"
 repo_url = "https://github.com/PlaneSight/vapoursynth-plusplus"
 repo_name = "PlaneSight/vapoursynth-plusplus"
+edit_uri = "edit/master/docs/"
 
 nav = [
     { "Home" = "index.md" },
     { "Get started" = [
+        "getting-started/index.md",
         { "Installation" = "getting-started/installation.md" },
         { "Your first filter" = "getting-started/first-filter.md" },
     ] },
     { "Concepts" = [
+        "concepts/index.md",
         { "Filter lifecycle" = "concepts/filter-lifecycle.md" },
         { "Frames and ownership" = "concepts/frames-and-ownership.md" },
         { "Scheduling and dependencies" = "concepts/scheduling.md" },
     ] },
     { "Reference" = [
+        "reference/index.md",
         { "Registration" = "reference/registration.md" },
         { "CoreProxy" = "reference/core.md" },
         { "VideoNode and VideoFrame" = "reference/video.md" },
@@ -28,6 +34,8 @@ nav = [
         { "Example catalog" = "examples/catalog.md" },
     ] },
     { "Project" = [
+        "project/index.md",
+        { "Repository structure" = "project/repository-structure.md" },
         { "C++23 and compiler portability" = "project/cpp23-and-portability.md" },
         { "Contributing" = "project/contributing.md" },
     ] },
@@ -36,8 +44,13 @@ nav = [
 [project.theme]
 features = [
     "navigation.instant",
+    "navigation.instant.progress",
     "navigation.path",
     "navigation.indexes",
+    "navigation.sections",
+    "navigation.tabs",
+    "navigation.tabs.sticky",
+    "navigation.tracking",
     "navigation.top",
     "toc.follow",
     "search.highlight",

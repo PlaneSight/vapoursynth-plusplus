@@ -1,6 +1,5 @@
 #include "VapourSynthConfig.vxx"
 
-#include <cassert>
 #include <cstdlib>
 #include <iostream>
 #include <set>
@@ -23,6 +22,14 @@ static std::string PluginIdentifier;
 static std::string PluginNamespace;
 static std::string PluginDescription;
 static std::vector<Registration> Registrations;
+
+static auto Require(bool Condition, const char* Message) -> bool {
+	if (Condition)
+		return true;
+
+	std::cerr << Message << '\n';
+	return false;
+}
 
 static int VS_CC ConfigurePlugin(
 	const char* Identifier,
@@ -82,19 +89,24 @@ int main(int ArgumentCount, char** Arguments) {
 	};
 	EntryPoint(nullptr, &API);
 
-	assert(PluginIdentifier == "com.vsfilterscript.test");
-	assert(PluginNamespace == "test");
-	assert(PluginDescription == "Test filters for vsFilterScript");
-	assert(Registrations.size() == 9);
+	if (!Require(PluginIdentifier == "com.vsfilterscript.test", "unexpected plugin identifier") ||
+		!Require(PluginNamespace == "test", "unexpected plugin namespace") ||
+		!Require(PluginDescription == "Test filters for vsFilterScript", "unexpected plugin description") ||
+		!Require(Registrations.size() == 9, "unexpected registered function count")) {
+		return EXIT_FAILURE;
+	}
 
 	auto Names = std::set<std::string>{};
 	for (const auto& Registration : Registrations) {
-		assert(!Registration.Name.empty());
-		assert(!Registration.Arguments.empty());
-		assert(Registration.Arguments.back() == ';');
-		assert(Registration.ReturnType == "clip:vnode;");
+		if (!Require(!Registration.Name.empty(), "registered function name must not be empty") ||
+			!Require(!Registration.Arguments.empty(), "registered argument signature must not be empty") ||
+			!Require(Registration.Arguments.back() == ';', "registered argument signature must end with a semicolon") ||
+			!Require(Registration.ReturnType == "clip:vnode;", "unexpected registered return signature")) {
+			return EXIT_FAILURE;
+		}
 		Names.insert(Registration.Name);
 	}
-	assert(Names.size() == Registrations.size());
-	return EXIT_SUCCESS;
+	return Require(Names.size() == Registrations.size(), "registered function names must be unique")
+		? EXIT_SUCCESS
+		: EXIT_FAILURE;
 }

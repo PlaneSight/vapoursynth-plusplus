@@ -2,5 +2,8 @@
 __pycache__/
 .pytest_cache/
 .ruff_cache/
+build/
+build-*/
+dist/
 site/
 .python-version

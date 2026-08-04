@@ -8,13 +8,22 @@ permissions:
   contents: read
 
 jobs:
-  compile:
-    name: ${{ matrix.compiler }}
+  unix:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        compiler: [gcc, clang]
+        include:
+          - name: GCC
+            cc: gcc
+            cxx: g++
+          - name: Clang
+            cc: clang
+            cxx: clang++
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
 
     steps:
       - uses: actions/checkout@v4
@@ -22,39 +31,27 @@ jobs:
       - name: Fetch VapourSynth API headers
         run: git clone --depth=1 https://github.com/vapoursynth/vapoursynth.git "$RUNNER_TEMP/vapoursynth"
 
-      - name: Select compiler
-        id: compiler
-        run: |
-          if [ "${{ matrix.compiler }}" = clang ]; then
-            echo "cxx=clang++" >> "$GITHUB_OUTPUT"
-          else
-            echo "cxx=g++" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
 
-      - name: Compile public adapter and examples
-        run: |
-          "${{ steps.compiler.outputs.cxx }}" -std=c++23 -Wall -Wextra -Wpedantic \
-            -Iinclude -I"$RUNNER_TEMP/vapoursynth/include" \
-            -fsyntax-only Examples/EntryPoint.cxx tests/compile.cxx
+      - name: Install build tools
+        run: uv sync --group build --locked
 
-      - name: Build and run adapter tests
+      - name: Build and test library
         run: |
-          "${{ steps.compiler.outputs.cxx }}" -std=c++23 -Wall -Wextra -Wpedantic \
-            -Iinclude -I"$RUNNER_TEMP/vapoursynth/include" \
-            tests/compile.cxx -o "$RUNNER_TEMP/vsfilterscript-format-test"
-          "$RUNNER_TEMP/vsfilterscript-format-test"
-          "${{ steps.compiler.outputs.cxx }}" -std=c++23 -Wall -Wextra -Wpedantic -fPIC -shared \
-            -Iinclude -I"$RUNNER_TEMP/vapoursynth/include" \
-            Examples/EntryPoint.cxx -o "$RUNNER_TEMP/vsfilterscriptexample.so"
-          "${{ steps.compiler.outputs.cxx }}" -std=c++23 -Wall -Wextra -Wpedantic \
-            -Iinclude -I"$RUNNER_TEMP/vapoursynth/include" \
-            tests/registration.cxx -ldl -o "$RUNNER_TEMP/vsfilterscript-registration-test"
-          "$RUNNER_TEMP/vsfilterscript-registration-test" "$RUNNER_TEMP/vsfilterscriptexample.so"
-          nm -D --defined-only "$RUNNER_TEMP/vsfilterscriptexample.so" | grep -q ' VapourSynthPluginInit2$'
-          "${{ steps.compiler.outputs.cxx }}" -std=c++23 -fPIC -c \
-            -Iinclude -I"$RUNNER_TEMP/vapoursynth/include" \
-            Examples/EntryPoint.cxx -o "$RUNNER_TEMP/entrypoint.o"
-          nm -g --defined-only "$RUNNER_TEMP/entrypoint.o" | grep -E 'VapourSynthPluginInit2$'
+          uv run --group build meson setup build-library \
+            -Dvapoursynth_include_dir="$RUNNER_TEMP/vapoursynth/include"
+          uv run --group build meson compile -C build-library
+          uv run --group build meson test -C build-library --print-errorlogs
+
+      - name: Build and test standalone examples
+        run: |
+          uv run --group build meson setup build-examples examples \
+            -Dvapoursynth_include_dir="$RUNNER_TEMP/vapoursynth/include"
+          uv run --group build meson compile -C build-examples
+          uv run --group build meson test -C build-examples --print-errorlogs
 
   msvc:
     name: MSVC
@@ -67,43 +64,29 @@ jobs:
         shell: pwsh
         run: git clone --depth=1 https://github.com/vapoursynth/vapoursynth.git "$env:RUNNER_TEMP\vapoursynth"
 
-      - name: Build and run adapter tests
-        shell: cmd
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install build tools
+        run: uv sync --group build --locked
+
+      - name: Build and test library
+        shell: pwsh
         run: |
-          for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -find VC\Auxiliary\Build\vcvars64.bat`) do set "VCVARS=%%i"
-          if not defined VCVARS exit /b 1
-          call "%VCVARS%"
-          if errorlevel 1 exit /b 1
+          uv run --group build meson setup build-library `
+            "-Dvapoursynth_include_dir=$env:RUNNER_TEMP\vapoursynth\include"
+          uv run --group build meson compile -C build-library
+          uv run --group build meson test -C build-library --print-errorlogs
 
-          cl /nologo /std:c++23preview /W4 /permissive- /EHsc /Zc:__cplusplus /c ^
-            /Iinclude /I"%RUNNER_TEMP%\vapoursynth\include" ^
-            Examples\EntryPoint.cxx /Fo"%RUNNER_TEMP%\entrypoint.obj"
-          if errorlevel 1 exit /b 1
-          cl /nologo /std:c++23preview /W4 /permissive- /EHsc /Zc:__cplusplus /c ^
-            /Iinclude /I"%RUNNER_TEMP%\vapoursynth\include" ^
-            tests\compile.cxx /Fo"%RUNNER_TEMP%\compile.obj"
-          if errorlevel 1 exit /b 1
-
-          cl /nologo /std:c++23preview /W4 /permissive- /EHsc /Zc:__cplusplus ^
-            /Iinclude /I"%RUNNER_TEMP%\vapoursynth\include" ^
-            tests\compile.cxx /Fe"%RUNNER_TEMP%\vsfilterscript-format-test.exe"
-          if errorlevel 1 exit /b 1
-          "%RUNNER_TEMP%\vsfilterscript-format-test.exe"
-          if errorlevel 1 exit /b 1
-
-          cl /nologo /std:c++23preview /W4 /permissive- /EHsc /Zc:__cplusplus /LD ^
-            /Iinclude /I"%RUNNER_TEMP%\vapoursynth\include" ^
-            Examples\EntryPoint.cxx ^
-            /link /OUT:"%RUNNER_TEMP%\vsfilterscriptexample.dll" ^
-            /IMPLIB:"%RUNNER_TEMP%\vsfilterscriptexample.lib"
-          if errorlevel 1 exit /b 1
-
-          cl /nologo /std:c++23preview /W4 /permissive- /EHsc /Zc:__cplusplus ^
-            /Iinclude /I"%RUNNER_TEMP%\vapoursynth\include" ^
-            tests\registration.cxx /Fe"%RUNNER_TEMP%\vsfilterscript-registration-test.exe"
-          if errorlevel 1 exit /b 1
-          "%RUNNER_TEMP%\vsfilterscript-registration-test.exe" "%RUNNER_TEMP%\vsfilterscriptexample.dll"
-          if errorlevel 1 exit /b 1
-
-          dumpbin /exports "%RUNNER_TEMP%\vsfilterscriptexample.dll" | findstr /c:"VapourSynthPluginInit2"
-          if errorlevel 1 exit /b 1
+      - name: Build and test standalone examples
+        shell: pwsh
+        run: |
+          uv run --group build meson setup build-examples examples `
+            "-Dvapoursynth_include_dir=$env:RUNNER_TEMP\vapoursynth\include"
+          uv run --group build meson compile -C build-examples
+          uv run --group build meson test -C build-examples --print-errorlogs

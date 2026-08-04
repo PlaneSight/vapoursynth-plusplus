@@ -1,96 +1,68 @@
-project('vsFilterScript', 'cpp',
-    default_options : ['buildtype=release', 'b_ndebug=if-release', 'cpp_std=c++23', 'warning_level=3'],
-    version : '3.0'
+project(
+    'vapoursynth-plusplus',
+    'cpp',
+    version : '3.0',
+    default_options : [
+        'b_ndebug=if-release',
+        'buildtype=release',
+        'cpp_std=c++23',
+        'warning_level=3',
+    ],
 )
 
-deps = dependency('vapoursynth')
-
-incdir = include_directories('include')
-
-test_plug = ['Examples/EntryPoint.cxx']
-
-headers = [
-	'include/AudioFrame.vxx',
-	'include/AudioNode.vxx',
-    'include/Core.vxx',
-    'include/Frame.vxx',
-	'include/Function.vxx',
-	'include/Infrastructure.vxx',
-	'include/Map.vxx',
-	'include/Node.vxx',
-	'include/Plane.vxx',
-	'include/Plugin.vxx',
-	'include/PluginInstantiator.vxx',
-	'include/Range.vxx',
-	'include/ResourceManager.vxx',
-	'include/Utility.vxx',
-	'include/VapourSynthConfig.vxx',
-	'include/UniversalContext.vxx',
-	'include/VideoFrame.vxx',
-	'include/VideoNode.vxx',
-	'include/Descriptors.vxx',
-	'include/Enumerations.vxx',
-	'include/FrameGenerator.vxx',
-	'include/LoggerController.vxx',
-	'include/RemappingFunctions.vxx',
-]
-
-examples = [
-    'Examples/Crop.hxx',
-    'Examples/EntryPoint.cxx',
-    'Examples/GaussBlurFast.hxx',
-    'Examples/GaussBlur.hxx',
-	'Examples/ModifyFrameExample.vpy',
-	'Examples/ModifyFrame.hxx',
-	'Examples/Palette.hxx',
-	'Examples/Rec601ToRGB.hxx',
-	'Examples/SeparableConvolution.hxx',
-	'Examples/TemporalMedian.hxx',
-	'Examples/MaskedMerge.hxx',
-]
-
-if get_option('install_examples')
-    install_data(examples, install_dir : 'share/vsFilterScript/Examples')
-endif
-
-if get_option('build_examples')
-    example_plugin = shared_module('vsfilterscriptexample',
-        test_plug,
-        include_directories : incdir,
-        dependencies : deps,
-        gnu_symbol_visibility : 'hidden',
-        install_dir : join_paths(get_option('libdir'), 'vapoursynth'),
-        install : true
+sdk_include_dir = get_option('vapoursynth_include_dir')
+if sdk_include_dir == ''
+    vapoursynth = dependency('vapoursynth')
+else
+    vapoursynth = declare_dependency(
+        include_directories : include_directories(sdk_include_dir, is_system : true),
     )
-
-    if host_machine.system() != 'windows'
-        registration_test_dependencies = []
-        if host_machine.system() == 'linux'
-            registration_test_dependencies += meson.get_compiler('cpp').find_library('dl')
-        endif
-        registration_test = executable(
-            'vsfilterscript-registration-test',
-            'tests/registration.cxx',
-            include_directories : incdir,
-            dependencies : [deps] + registration_test_dependencies
-        )
-        test('plugin-registration', registration_test, args : [example_plugin.full_path()])
-    endif
 endif
+
+public_headers = files(
+    'include/AudioFrame.vxx',
+    'include/AudioNode.vxx',
+    'include/Core.vxx',
+    'include/Descriptors.vxx',
+    'include/Enumerations.vxx',
+    'include/Frame.vxx',
+    'include/FrameGenerator.vxx',
+    'include/Function.vxx',
+    'include/Infrastructure.vxx',
+    'include/LoggerController.vxx',
+    'include/Map.vxx',
+    'include/Node.vxx',
+    'include/Plane.vxx',
+    'include/Plugin.vxx',
+    'include/PluginInstantiator.vxx',
+    'include/Range.vxx',
+    'include/RemappingFunctions.vxx',
+    'include/ResourceManager.vxx',
+    'include/UniversalContext.vxx',
+    'include/Utility.vxx',
+    'include/VapourSynthConfig.vxx',
+    'include/VideoFrame.vxx',
+    'include/VideoNode.vxx',
+)
+
+vapoursynth_plusplus = declare_dependency(
+    dependencies : vapoursynth,
+    include_directories : include_directories('include'),
+)
 
 format_test = executable(
-    'vsfilterscript-format-test',
+    'vapoursynth-plusplus-format-test',
     'tests/compile.cxx',
-    include_directories : incdir,
-    dependencies : deps
+    dependencies : vapoursynth_plusplus,
 )
 test('format-adapter', format_test)
 
-install_headers(headers, subdir : 'vsFilterScript')
+install_headers(public_headers, subdir : 'vsFilterScript')
 
 import('pkgconfig').generate(
     name : 'vsfilterscript',
+    filebase : 'vsfilterscript',
     subdirs : 'vsFilterScript',
     version : meson.project_version(),
-    description : 'C++ wrapper for VSAPI to help you sketch your filter in the fastest possible way.'
+    description : 'C++23 layer for authoring VapourSynth API 4 filters.',
 )

@@ -1,30 +1,51 @@
 ---
 title: Examples
-description: Learn from the included VapourSynth filter examples.
+description: Build and verify the independent example plugin.
 ---
 
 # Examples
 
-The Examples/ directory is a compact executable catalogue of the library's intended patterns.
-They are registered by Examples/EntryPoint.cxx and can be built with:
+The `examples/` directory is a self-contained Meson consumer of the library.
+It owns its source, build definition, registration test, and runtime scripts;
+the root project does not reach into it.
 
-~~~bash
-meson setup build -Dbuild_examples=true
-ninja -C build
-~~~
+## Build-time verification
 
-Read examples in this order:
+```bash
+uv sync --group build --locked
+uv run --group build meson setup build-examples examples
+uv run --group build meson compile -C build-examples
+uv run --group build meson test -C build-examples --print-errorlogs
+```
 
-1. GaussBlur.hxx for a single-input spatial filter.
-2. Crop.hxx for metadata changes and multiple supported sample types.
-3. TemporalMedian.hxx for temporal frame requests.
-4. MaskedMerge.hxx for multiple input nodes.
-5. ModifyFrame.hxx for calling a VapourSynth function from a filter.
-6. SeparableConvolution.hxx for a workflow that composes multiple filter instances.
+This path does not require an installed VapourSynth runtime. The test loads the
+module directly and verifies:
 
-The [example catalog](catalog.md) records each example's contract and source link.
+- the `VapourSynthPluginInit2` export;
+- the plugin identifier, namespace, and description;
+- every registered function name, argument signature, and return signature.
+
+## Runtime verification
+
+With VapourSynth and `vspipe` installed, point the smoke script at the built
+module:
+
+```bash
+VAPOURSYNTH_PLUSPLUS_EXAMPLE=build-examples/libvapoursynth-plusplus-example.so \
+    vspipe --info examples/scripts/smoke.vpy -
+```
+
+The script loads the plugin, creates a frame with `test.Palette`, requests
+that frame, and checks its dimensions and sample value. Adjust the library
+suffix for the host platform.
+
+## Read the implementations
+
+Start with `Palette.hxx` for a source filter or `GaussBlur.hxx` for a
+single-input spatial filter. The [example catalog](catalog.md) compares every
+filter by input contract and scheduling model.
 
 !!! warning "Examples are contracts, not universal filters"
-    Several examples intentionally restrict formats or dimensions to keep the implementation
-    focused. Preserve those checks when adapting an example; widening support requires matching
-    changes to validation, typed access, metadata, and boundary behavior.
+    Several filters deliberately restrict formats or dimensions. Widening
+    support requires corresponding changes to validation, typed access,
+    metadata, and boundary behavior.

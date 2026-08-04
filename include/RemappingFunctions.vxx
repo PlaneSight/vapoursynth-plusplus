@@ -7,7 +7,7 @@ namespace RemappingFunctions {
 		return x;
 	};
 	auto Reflect = [](auto x, auto Bound) {
-		while (x < 0 || x >= Bound) {
+		while (x < 0 || std::cmp_greater_equal(x, Bound)) {
 			x = std::abs(x);
 			x -= Bound - 1;
 			x = -std::abs(x);

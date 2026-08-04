@@ -1,93 +1,83 @@
 ---
 title: Installation
-description: Build vapoursynth-plusplus and its tests with Meson.
+description: Create the pinned tool environment and build vapoursynth-plusplus.
 ---
 
 # Installation
 
-Build the project when you have a VapourSynth API 4 SDK discoverable by Meson, a C++23 compiler,
-Meson, and Ninja.
+The repository uses uv as the single entry point for build and documentation
+tools. uv installs the exact Meson and Ninja versions recorded in `uv.lock`;
+your compiler and VapourSynth SDK remain native system dependencies.
 
 ## Requirements
 
 - VapourSynth API 4.2 or newer
 - A compiler with C++23 support
-- Meson
-- Ninja
+- [uv](https://docs.astral.sh/uv/)
 
 The required API level is enforced by
-[VapourSynthConfig.vxx](https://github.com/PlaneSight/vapoursynth-plusplus/blob/master/include/VapourSynthConfig.vxx):
+[`VapourSynthConfig.vxx`](https://github.com/PlaneSight/vapoursynth-plusplus/blob/master/include/VapourSynthConfig.vxx):
 
-~~~cpp
+```cpp
 #define VS_USE_API_42
 #include "VapourSynth4.h"
 
 static_assert(VAPOURSYNTH_API_MAJOR == 4);
 static_assert(VAPOURSYNTH_API_MINOR >= 2);
-~~~
+```
 
-The SDK must also be discoverable as the Meson dependency named vapoursynth, because the project
-uses dependency('vapoursynth') in meson.build.
+## Build the library tests
 
-## Configure and build
-
-Clone the repository and configure a release build:
-
-~~~bash
+```bash
 git clone https://github.com/PlaneSight/vapoursynth-plusplus.git
 cd vapoursynth-plusplus
-meson setup build
-ninja -C build
-~~~
 
-The default build compiles the format-adapter test. Run it with:
+uv sync --group build --locked
+uv run --group build meson setup build-library
+uv run --group build meson compile -C build-library
+uv run --group build meson test -C build-library --print-errorlogs
+```
 
-~~~bash
-meson test -C build
-~~~
+Meson normally discovers the VapourSynth SDK through pkg-config. If you have
+only the SDK headers, configure their location explicitly:
+
+```bash
+uv run --group build meson setup build-library \
+    -Dvapoursynth_include_dir=/path/to/vapoursynth/include
+```
 
 ## Build the example plugin
 
-The examples are compiled into a VapourSynth plugin when build_examples is enabled:
+The example plugin is a separate Meson project. Configuring it independently
+proves that the public headers work from a consumer boundary:
 
-~~~bash
-meson setup build -Dbuild_examples=true
-ninja -C build
-meson test -C build
-~~~
+```bash
+uv run --group build meson setup build-examples examples
+uv run --group build meson compile -C build-examples
+uv run --group build meson test -C build-examples --print-errorlogs
+```
 
-The example plugin is installed under Meson's configured library directory when install_examples
-is enabled:
+The test loads the produced module, calls `VapourSynthPluginInit2`, and
+validates the plugin descriptor and registered function contracts. See the
+[examples guide](../examples/index.md) for the optional runtime smoke test.
 
-~~~bash
-meson setup build -Dbuild_examples=true -Dinstall_examples=true
-ninja -C build
-ninja -C build install
-~~~
+## Install the headers
 
-The plugin exports VapourSynthPluginInit2, the API 4 entry point. The registration test loads
-that symbol and verifies the plugin descriptor and all nine registered functions.
+Use Meson's normal install command after configuring `build-library`:
 
-## Use the headers
+```bash
+uv run --group build meson install -C build-library
+```
 
-The public headers live in include/ and use the .vxx suffix. Include the entry-point or facility
-you need from a target that also has the VapourSynth SDK include path:
-
-~~~cpp
-#include "PluginInstantiator.vxx"
-#include "Core.vxx"
-#include "VideoNode.vxx"
-~~~
-
-The Meson project installs the headers below the vsFilterScript include subdirectory and
-generates a vsfilterscript pkg-config file. The project name is historical; the public
-headers and examples are the current source of truth.
+The headers are installed below `vsFilterScript` for compatibility with
+existing consumers. The generated pkg-config package remains
+`vsfilterscript`.
 
 ## Troubleshooting
 
-| Symptom | Check |
+| Symptom | Resolution |
 | --- | --- |
-| dependency('vapoursynth') is not found | Make the SDK's Meson or pkg-config metadata discoverable |
-| API version static assertion fails | Install an API 4.2-or-newer SDK and check which header Meson selects |
-| The example plugin is not built | Configure with -Dbuild_examples=true |
-| Registration test is skipped on Windows | The test currently loads the shared library only on non-Windows builds |
+| `Dependency "vapoursynth" not found` | Install the SDK pkg-config metadata or pass `vapoursynth_include_dir` |
+| API version assertion fails | Check that the selected SDK is API 4.2 or newer |
+| Meson or Ninja is missing | Prefix the command with `uv run --group build` |
+| A setup directory has stale options | Run `meson setup --wipe` for that specific build directory |
