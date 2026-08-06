@@ -8,6 +8,12 @@ The public C++ patterns remain independent of the VapourSynth ABI. The API 4
 adapter is concentrated at the handle, map, format, and plugin callback
 boundaries.
 
+`API4Extensions.vxx` exposes API 4.1/4.2 facilities that are not yet folded into
+the original class surface, including linear-filter and cache control, early
+frame release, node/cache inspection and timing, `VSCoreInfo2`, canonical format
+names, plugin return-type/version introspection, native map arrays, saturated
+numeric map access, empty map values, and data type hints.
+
 ## Requirements
 
 - VapourSynth API 4.2 or newer
