@@ -1,0 +1,208 @@
+#pragma once
+
+#include <array>
+#include <cstdint>
+#include <span>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "Core.vxx"
+
+namespace API4 {
+	struct CacheConfiguration {
+		int FixedSize = -1;
+		int MaxSize = -1;
+		int MaxHistorySize = -1;
+	};
+
+	struct CoreInfo2 {
+		std::string_view Version{};
+		int CoreVersion = 0;
+		int APIVersion = 0;
+		int CreationFlags = 0;
+		int ThreadCount = 0;
+		std::int64_t MaxFrameBufferSize = 0;
+		std::int64_t UsedFrameBufferSize = 0;
+	};
+
+	struct PluginFunctionInfo {
+		std::string_view Name{};
+		std::string_view Arguments{};
+		std::string_view ReturnType{};
+	};
+
+	inline auto SetCacheMode(const Node& Target, CacheModes Mode) -> void {
+		UniversalContext::API->setCacheMode(Target.Handle, static_cast<int>(Mode));
+	}
+
+	inline auto ConfigureCache(const Node& Target, CacheConfiguration Configuration) -> void {
+		UniversalContext::API->setCacheOptions(
+			Target.Handle,
+			Configuration.FixedSize,
+			Configuration.MaxSize,
+			Configuration.MaxHistorySize);
+	}
+
+	inline auto EnableLinearAccess(const Node& Target) -> int {
+		return UniversalContext::API->setLinearFilter(Target.Handle);
+	}
+
+	inline auto ReleaseFrameEarly(const Node& Source, std::integral auto Index, FrameGenerator::ContextProxy Context) -> void {
+		UniversalContext::API->releaseFrameEarly(Source.Handle, static_cast<int>(Index), Context.Handle);
+	}
+
+	inline auto CacheFrame(const FrameReference& Frame, std::integral auto Index, FrameGenerator::ContextProxy Context) -> void {
+		UniversalContext::API->cacheFrame(Frame.Handle, static_cast<int>(Index), Context.Handle);
+	}
+
+	inline auto ClearCache(const Node& Target) -> void {
+		UniversalContext::API->clearNodeCache(Target.Handle);
+	}
+
+	inline auto ClearCaches(const CoreProxy& Core) -> void {
+		UniversalContext::API->clearCoreCaches(Core.Handle);
+	}
+
+	inline auto QueryName(const Node& Target) -> std::string_view {
+		return UniversalContext::API->getNodeName(Target.Handle);
+	}
+
+	inline auto QueryFilterMode(const Node& Target) -> VSFilterMode {
+		return static_cast<VSFilterMode>(UniversalContext::API->getNodeFilterMode(Target.Handle));
+	}
+
+	inline auto QueryDependencies(const Node& Target) -> std::vector<VSFilterDependency> {
+		auto Result = std::vector<VSFilterDependency>{};
+		auto Count = UniversalContext::API->getNumNodeDependencies(Target.Handle);
+		Result.reserve(static_cast<std::size_t>(Count));
+		for (auto Index = 0; Index < Count; ++Index)
+			Result.push_back(*UniversalContext::API->getNodeDependency(Target.Handle, Index));
+		return Result;
+	}
+
+	inline auto QueryProcessingTime(const Node& Target, bool Reset = false) -> std::int64_t {
+		return UniversalContext::API->getNodeProcessingTime(Target.Handle, Reset ? 1 : 0);
+	}
+
+	inline auto QueryFreedNodeProcessingTime(const CoreProxy& Core, bool Reset = false) -> std::int64_t {
+		return UniversalContext::API->getFreedNodeProcessingTime(Core.Handle, Reset ? 1 : 0);
+	}
+
+	inline auto NodeTimingEnabled(const CoreProxy& Core) -> bool {
+		return UniversalContext::API->getCoreNodeTiming(Core.Handle) != 0;
+	}
+
+	inline auto SetNodeTiming(const CoreProxy& Core, bool Enabled) -> void {
+		UniversalContext::API->setCoreNodeTiming(Core.Handle, Enabled ? 1 : 0);
+	}
+
+	inline auto QueryCoreInfo(const CoreProxy& Core) -> CoreInfo2 {
+		auto Buffer = VSCoreInfo2{};
+		UniversalContext::API->getCoreInfo2(Core.Handle, &Buffer);
+		return CoreInfo2{
+			.Version = Buffer.versionString,
+			.CoreVersion = Buffer.coreVersion,
+			.APIVersion = Buffer.apiVersion,
+			.CreationFlags = Buffer.creationFlags,
+			.ThreadCount = Buffer.numThreads,
+			.MaxFrameBufferSize = Buffer.maxFramebufferSize,
+			.UsedFrameBufferSize = Buffer.usedFramebufferSize
+		};
+	}
+
+	inline auto QueryFormatName(const VideoFormat& Format) -> std::string {
+		auto Buffer = std::array<char, 32>{};
+		auto APIFormat = VideoFormat::AdjustToLegacyLayout(Format);
+		if (UniversalContext::API->getVideoFormatName(&APIFormat, Buffer.data()) == 0)
+			throw std::runtime_error{ "QueryFormatName: invalid video format." };
+		return Buffer.data();
+	}
+
+	inline auto QueryFormatName(const AudioFormat& Format) -> std::string {
+		auto Buffer = std::array<char, 32>{};
+		auto APIFormat = AudioFormat::ToAPI(Format);
+		if (UniversalContext::API->getAudioFormatName(&APIFormat, Buffer.data()) == 0)
+			throw std::runtime_error{ "QueryFormatName: invalid audio format." };
+		return Buffer.data();
+	}
+
+	inline auto QueryPluginVersion(const Plugin& Target) -> int {
+		return UniversalContext::API->getPluginVersion(Target.Handle);
+	}
+
+	inline auto QueryFunctions(const Plugin& Target) -> std::vector<PluginFunctionInfo> {
+		auto Result = std::vector<PluginFunctionInfo>{};
+		for (VSPluginFunction* Function = nullptr; (Function = UniversalContext::API->getNextPluginFunction(Function, Target.Handle)) != nullptr;)
+			Result.push_back(PluginFunctionInfo{
+				.Name = UniversalContext::API->getPluginFunctionName(Function),
+				.Arguments = UniversalContext::API->getPluginFunctionArguments(Function),
+				.ReturnType = UniversalContext::API->getPluginFunctionReturnType(Function)
+			});
+		return Result;
+	}
+
+	namespace Map {
+		inline auto SetEmpty(VSMap* Target, std::string_view Key, ItemTypes Type) -> bool {
+			auto OwnedKey = std::string{ Key };
+			return UniversalContext::API->mapSetEmpty(Target, OwnedKey.c_str(), static_cast<int>(Type)) == 0;
+		}
+
+		inline auto GetIntSaturated(const VSMap* Target, std::string_view Key, int Index = 0) -> int {
+			auto OwnedKey = std::string{ Key };
+			auto Error = 0;
+			auto Value = UniversalContext::API->mapGetIntSaturated(Target, OwnedKey.c_str(), Index, &Error);
+			if (Error != peSuccess)
+				throw std::runtime_error{ "GetIntSaturated: map lookup failed." };
+			return Value;
+		}
+
+		inline auto GetFloatSaturated(const VSMap* Target, std::string_view Key, int Index = 0) -> float {
+			auto OwnedKey = std::string{ Key };
+			auto Error = 0;
+			auto Value = UniversalContext::API->mapGetFloatSaturated(Target, OwnedKey.c_str(), Index, &Error);
+			if (Error != peSuccess)
+				throw std::runtime_error{ "GetFloatSaturated: map lookup failed." };
+			return Value;
+		}
+
+		inline auto GetIntArray(const VSMap* Target, std::string_view Key) -> std::span<const std::int64_t> {
+			auto OwnedKey = std::string{ Key };
+			auto Error = 0;
+			auto Data = UniversalContext::API->mapGetIntArray(Target, OwnedKey.c_str(), &Error);
+			if (Error != peSuccess)
+				throw std::runtime_error{ "GetIntArray: map lookup failed." };
+			auto Size = UniversalContext::API->mapNumElements(Target, OwnedKey.c_str());
+			return { Data, static_cast<std::size_t>(Size) };
+		}
+
+		inline auto GetFloatArray(const VSMap* Target, std::string_view Key) -> std::span<const double> {
+			auto OwnedKey = std::string{ Key };
+			auto Error = 0;
+			auto Data = UniversalContext::API->mapGetFloatArray(Target, OwnedKey.c_str(), &Error);
+			if (Error != peSuccess)
+				throw std::runtime_error{ "GetFloatArray: map lookup failed." };
+			auto Size = UniversalContext::API->mapNumElements(Target, OwnedKey.c_str());
+			return { Data, static_cast<std::size_t>(Size) };
+		}
+
+		inline auto SetIntArray(VSMap* Target, std::string_view Key, std::span<const std::int64_t> Values) -> bool {
+			auto OwnedKey = std::string{ Key };
+			return UniversalContext::API->mapSetIntArray(Target, OwnedKey.c_str(), Values.data(), static_cast<int>(Values.size())) == 0;
+		}
+
+		inline auto SetFloatArray(VSMap* Target, std::string_view Key, std::span<const double> Values) -> bool {
+			auto OwnedKey = std::string{ Key };
+			return UniversalContext::API->mapSetFloatArray(Target, OwnedKey.c_str(), Values.data(), static_cast<int>(Values.size())) == 0;
+		}
+
+		inline auto QueryDataTypeHint(const VSMap* Target, std::string_view Key, int Index = 0) -> DataTypeHints {
+			auto OwnedKey = std::string{ Key };
+			auto Error = 0;
+			auto Hint = UniversalContext::API->mapGetDataTypeHint(Target, OwnedKey.c_str(), Index, &Error);
+			if (Error != peSuccess)
+				throw std::runtime_error{ "QueryDataTypeHint: map lookup failed." };
+			return static_cast<DataTypeHints>(Hint);
+		}
+	}
+}
