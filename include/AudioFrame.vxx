@@ -36,7 +36,11 @@ public:
 
 template<>
 struct AudioFrame<void> : FramePrototype<void>, AudioFormat {
+	using typename FrameReference::HandleType;
 	using FramePrototype<void>::FramePrototype;
 	AudioFrame() = default;
+	AudioFrame(ExplicitlyConvertibleTo<FrameReference::HandleType> auto&& Handle) : FramePrototype<void>{ Forward(Handle) } {
+		static_cast<AudioFormat&>(*this) = this->QueryAudioFormat();
+	}
 	auto& ExtractFormat() const { return static_cast<const AudioFormat&>(*this); }
 };

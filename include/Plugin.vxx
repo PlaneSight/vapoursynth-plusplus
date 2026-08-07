@@ -32,6 +32,31 @@ private:
 	};
 
 public:
+	auto QueryVersion() const -> int {
+		return UniversalContext::API->getPluginVersion(Handle);
+	}
+	auto QueryFunction(ExplicitlyConvertibleTo<std::string> auto&& FunctionName) const -> PluginFunctionInfo {
+		auto Name = static_cast<std::string>(Forward(FunctionName));
+		auto FunctionHandle = UniversalContext::API->getPluginFunctionByName(Name.data(), Handle);
+		if (FunctionHandle == nullptr)
+			throw std::runtime_error{ "Plugin: function "s + Name + " was not found." };
+		return PluginFunctionInfo{
+			.Name = UniversalContext::API->getPluginFunctionName(FunctionHandle),
+			.Arguments = UniversalContext::API->getPluginFunctionArguments(FunctionHandle),
+			.ReturnType = UniversalContext::API->getPluginFunctionReturnType(FunctionHandle)
+		};
+	}
+	auto ListFunctionInfo() const -> std::vector<PluginFunctionInfo> {
+		auto Functions = std::vector<PluginFunctionInfo>{};
+		for (VSPluginFunction* FunctionHandle = nullptr; (FunctionHandle = UniversalContext::API->getNextPluginFunction(FunctionHandle, Handle)) != nullptr;)
+			Functions.push_back(PluginFunctionInfo{
+				.Name = UniversalContext::API->getPluginFunctionName(FunctionHandle),
+				.Arguments = UniversalContext::API->getPluginFunctionArguments(FunctionHandle),
+				.ReturnType = UniversalContext::API->getPluginFunctionReturnType(FunctionHandle)
+			});
+		return Functions;
+	}
+
 	auto operator[](ExplicitlyConvertibleTo<std::string> auto&& FunctionName) const {
 		auto Name = static_cast<std::string>(Forward(FunctionName));
 		auto FunctionHandle = UniversalContext::API->getPluginFunctionByName(Name.data(), Handle);

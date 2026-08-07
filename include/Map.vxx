@@ -5,6 +5,19 @@
 struct Function;
 
 namespace Utility::Map {
+	template<typename TargetType>
+	concept InitializerList = requires {
+		typename std::remove_cvref_t<TargetType>::value_type;
+		requires std::same_as<std::remove_cvref_t<TargetType>, std::initializer_list<typename std::remove_cvref_t<TargetType>::value_type>>;
+	};
+
+	template<typename TargetType>
+	struct IsVector : std::false_type {};
+	template<typename ElementType, typename Allocator>
+	struct IsVector<std::vector<ElementType, Allocator>> : std::true_type {};
+	template<typename TargetType>
+	concept Vector = IsVector<std::remove_cvref_t<TargetType>>::value;
+
 	template<auto NonOwning = false>
 	using Reference = ResourceManager::Tracker<VSMap, NonOwning>;
 
@@ -12,6 +25,13 @@ namespace Utility::Map {
 	auto RenderResource(auto&& Handle) -> std::string {
 		return static_cast<std::string>(ResourceWrapper{ Forward(Handle) });
 	}
+
+	struct MapData {
+		std::string Bytes{};
+		DataTypeHints Hint = DataTypeHints::Utf8;
+
+		operator const char*() const { return Bytes.c_str(); }
+	};
 
 	template<auto Readonly, auto NonOwning>
 	struct Item {
@@ -54,7 +74,7 @@ namespace Utility::Map {
 		Item(auto&& Handle, ExplicitlyConvertibleTo<std::string> auto&& Key) {
 			this->StorageAccess = std::make_shared<SharedState>(Forward(Handle), Forward(Key));
 		}
-		Item(std::shared_ptr<SharedState> State, std::ptrdiff_t Index) : StorageAccess{ std::move(State) }, Index{ Index } {}
+		Item(std::shared_ptr<SharedState> State, std::ptrdiff_t Index) : Index{ Index }, StorageAccess{ std::move(State) } {}
 		Item(const Item&) = default;
 		Item(Item&&) = default;
 		auto& operator=(const Item&) requires Readonly = delete;
@@ -64,6 +84,20 @@ namespace Utility::Map {
 		auto Type() const {
 			return static_cast<ItemTypes>(UniversalContext::API->mapGetType(StorageAccess->Handle, StorageAccess->Key.data()));
 		}
+		auto IsPresent() const {
+			return UniversalContext::API->mapNumElements(StorageAccess->Handle, StorageAccess->Key.data()) >= 0;
+		}
+		auto IsEmpty() const {
+			return IsPresent() && QueryStorageSize() == 0;
+		}
+		template<Countable IndexType = int>
+		auto QueryDataTypeHint(IndexType Index = 0) const -> DataTypeHints {
+			auto Error = 0;
+			auto Hint = UniversalContext::API->mapGetDataTypeHint(StorageAccess->Handle, StorageAccess->Key.data(), Index, &Error);
+			if (Error != peSuccess)
+				throw std::runtime_error{ "Map::Item::QueryDataTypeHint: map lookup failed." };
+			return static_cast<DataTypeHints>(Hint);
+		}
 		auto Apply(auto&& PolymorphicFunction) const {
 			using enum ItemTypes;
 			if (Type() == Int)
@@ -71,7 +105,23 @@ namespace Utility::Map {
 			else if (Type() == Float)
 				return PolymorphicFunction(static_cast<double>(*this));
 			else if (Type() == String)
-				return PolymorphicFunction(static_cast<const char*>(*this));
+				return PolymorphicFunction([&] {
+					if (QueryStorageSize() == 0)
+						return MapData{};
+					return MapData{
+						.Bytes = [&] {
+							auto Error = 0;
+							auto Size = UniversalContext::API->mapGetDataSize(StorageAccess->Handle, StorageAccess->Key.data(), Index, &Error);
+							if (Error != peSuccess)
+								throw std::runtime_error{ "Map::Item: failed to query data size." };
+							auto Data = UniversalContext::API->mapGetData(StorageAccess->Handle, StorageAccess->Key.data(), Index, &Error);
+							if (Error != peSuccess)
+								throw std::runtime_error{ "Map::Item: failed to read data." };
+							return std::string{ Data, static_cast<std::size_t>(Size) };
+						}(),
+						.Hint = QueryStorageSize() > Index ? QueryDataTypeHint() : DataTypeHints::Utf8
+					};
+				}());
 			else if (Type() == VideoNode || Type() == AudioNode)
 				return PolymorphicFunction(static_cast<NodeReference>(*this));
 			else if (Type() == VideoFrame || Type() == AudioFrame)
@@ -136,18 +186,51 @@ namespace Utility::Map {
 		}
 
 	public:
-		template<Iterable TargetType>
-		operator TargetType() const requires requires(TargetType x) {
-			{ x }->AnyBut<std::initializer_list<std::decay_t<decltype(*x.begin())>>, std::initializer_list<const std::decay_t<decltype(*x.begin())>>>;
-			requires (requires { { x }->ConstructibleFrom<const char*>; } == false);
-			requires (requires { { x.Type() }->SubtypeOf<ItemTypes>; } == false);
-		} {
+		template<typename TargetType> requires (Iterable<TargetType> && !InitializerList<TargetType>)
+		auto Convert() const requires (
+			!std::constructible_from<TargetType, const char*> &&
+			!requires(TargetType x) { x.Type(); }
+		) {
 			using ElementType = std::decay_t<decltype(*TargetType{}.begin()) > ;
 			constexpr auto IsNumber = std::floating_point<ElementType> || Countable<ElementType>;
 			constexpr auto IsString = ConstructibleFrom<ElementType, const char*>;
 			constexpr auto IsIntrinsicObject = AnyOf<ElementType, NodeReference, FrameReference, FunctionReference>;
 			static_assert(IsNumber || IsString || IsIntrinsicObject, "Item: cannot convert an item to a container of unrecognized type.");
+			if constexpr (std::same_as<ElementType, std::int64_t> && requires(TargetType x) {
+				 x.resize(std::size_t{});
+				 x.data();
+			}) {
+				auto Error = 0;
+				auto Data = UniversalContext::API->mapGetIntArray(StorageAccess->Handle, StorageAccess->Key.data(), &Error);
+				if (Error != peSuccess)
+					throw std::runtime_error{ "Item: failed to read native integer array." };
+				auto Result = TargetType{};
+				Result.resize(static_cast<std::size_t>(QueryStorageSize()));
+				std::copy_n(Data, Result.size(), Result.data());
+				return Result;
+			}
+			if constexpr (std::same_as<ElementType, double> && requires(TargetType x) {
+				 x.resize(std::size_t{});
+				 x.data();
+			}) {
+				auto Error = 0;
+				auto Data = UniversalContext::API->mapGetFloatArray(StorageAccess->Handle, StorageAccess->Key.data(), &Error);
+				if (Error != peSuccess)
+					throw std::runtime_error{ "Item: failed to read native float array." };
+				auto Result = TargetType{};
+				Result.resize(static_cast<std::size_t>(QueryStorageSize()));
+				std::copy_n(Data, Result.size(), Result.data());
+				return Result;
+			}
 			return Utility::ContainerManipulators::MapWithNaturalTransformation<TargetType>([](auto&& x) { return static_cast<ElementType>(x); }, *this);
+		}
+
+		template<typename TargetType> requires (Iterable<TargetType> && !InitializerList<TargetType> && !Vector<TargetType>)
+		operator TargetType() const requires (
+			!std::constructible_from<TargetType, const char*> &&
+			!requires(TargetType x) { x.Type(); }
+		) {
+			return Convert<TargetType>();
 		}
 
 	private:
@@ -164,6 +247,8 @@ namespace Utility::Map {
 					UniversalContext::API->mapSetFloat(StorageAccess->Handle, StorageAccess->Key.data(), Value, maAppend);
 				else if constexpr (Countable<ValueType>)
 					UniversalContext::API->mapSetInt(StorageAccess->Handle, StorageAccess->Key.data(), static_cast<std::int64_t>(Value), maAppend);
+				else if constexpr (std::same_as<ValueType, MapData>)
+					UniversalContext::API->mapSetData(StorageAccess->Handle, StorageAccess->Key.data(), Value.Bytes.data(), static_cast<int>(Value.Bytes.size()), static_cast<int>(Value.Hint), maAppend);
 				else if constexpr (requires { { Value }->ExplicitlyConvertibleTo<const char*>; })
 					UniversalContext::API->mapSetData(StorageAccess->Handle, StorageAccess->Key.data(), static_cast<const char*>(Value), -1, dtUtf8, maAppend);
 				else if constexpr (requires { { Value.size() }->std::integral; { Value.data() }->std::convertible_to<const char*>; })
@@ -177,8 +262,25 @@ namespace Utility::Map {
 				else
 					static_assert(sizeof(Value) == -1, "Item: failed to inject an instance of unrecognized type.");
 			};
-			if (AppendMode == maReplace)
+			if (AppendMode == maReplace) {
 				Erase();
+				if constexpr (Iterable<decltype(Entity)> && !IsCharArray && !IsCharContainer && requires {
+						Entity.data();
+						Entity.size();
+					}) {
+					using ElementType = std::decay_t<decltype(*Entity.begin())>;
+					if constexpr (std::same_as<ElementType, std::int64_t>) {
+						if (UniversalContext::API->mapSetIntArray(StorageAccess->Handle, StorageAccess->Key.data(), Entity.data(), static_cast<int>(Entity.size())) != 0)
+							throw std::runtime_error{ "Map::Item: failed to write native integer array." };
+						return;
+					}
+					else if constexpr (std::same_as<ElementType, double>) {
+						if (UniversalContext::API->mapSetFloatArray(StorageAccess->Handle, StorageAccess->Key.data(), Entity.data(), static_cast<int>(Entity.size())) != 0)
+							throw std::runtime_error{ "Map::Item: failed to write native float array." };
+						return;
+					}
+				}
+			}
 			if constexpr (requires { { Entity.Type() }->SubtypeOf<ItemTypes>; })
 				for (auto&& x : Entity)
 					x.Apply(InjectValue);
@@ -192,6 +294,18 @@ namespace Utility::Map {
 	public:
 		auto Erase() const requires (Readonly == false) {
 			return UniversalContext::API->mapDeleteKey(StorageAccess->Handle, StorageAccess->Key.data()) == 1;
+		}
+		template<SubtypeOf<NodeReference> Resource>
+		auto Consume(Resource&& Value) const requires (Readonly == false) {
+			return UniversalContext::API->mapConsumeNode(StorageAccess->Handle, StorageAccess->Key.data(), Value.Leak(), maAppend) == 0;
+		}
+		template<SubtypeOf<FrameReference> Resource>
+		auto Consume(Resource&& Value) const requires (Readonly == false) {
+			return UniversalContext::API->mapConsumeFrame(StorageAccess->Handle, StorageAccess->Key.data(), Value.Leak(), maAppend) == 0;
+		}
+		template<SubtypeOf<FunctionReference> Resource>
+		auto Consume(Resource&& Value) const requires (Readonly == false) {
+			return UniversalContext::API->mapConsumeFunction(StorageAccess->Handle, StorageAccess->Key.data(), Value.Leak(), maAppend) == 0;
 		}
 		auto& operator=(auto&& Entity) const requires (Readonly == false) {
 			if constexpr (requires { { Entity.Type() }->SubtypeOf<ItemTypes>; })
@@ -238,7 +352,9 @@ namespace Utility::Map {
 			auto IndentStructuredRepresentation = [](auto&& RepresentationString) {
 				return std::regex_replace("{\n" + std::move(RepresentationString), std::regex{ "\n" }, "\n    ") + "\n}";
 			};
-			if constexpr (requires { std::to_string(Value); })
+			if constexpr (std::same_as<std::decay_t<decltype(Value)>, MapData>)
+				return "\""s + Value.Bytes + "\"";
+			else if constexpr (requires { std::to_string(Value); })
 				return std::to_string(Value);
 			else if constexpr (requires { { Value }->std::convertible_to<const char*>; })
 				return "\""s + Value + "\"";

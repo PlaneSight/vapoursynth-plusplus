@@ -20,6 +20,7 @@ else
 endif
 
 public_headers = files(
+    'include/API4Extensions.vxx',
     'include/AudioFrame.vxx',
     'include/AudioNode.vxx',
     'include/Core.vxx',
@@ -56,6 +57,13 @@ format_test = executable(
     dependencies : vapoursynth_plusplus,
 )
 test('format-adapter', format_test)
+
+api42_surface_test = executable(
+    'vapoursynth-plusplus-api42-surface-test',
+    'tests/library/api42_surface.cxx',
+    dependencies : vapoursynth_plusplus,
+)
+test('api42-surface', api42_surface_test)
 
 install_headers(public_headers, subdir : 'vsFilterScript')
 

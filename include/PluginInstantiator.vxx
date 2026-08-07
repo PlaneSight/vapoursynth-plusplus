@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Core.vxx"
+#include "API4Extensions.vxx"
 
 namespace PluginInstantiator::Private {
 	inline auto Configurator = static_cast<const VSPLUGINAPI*>(nullptr);
@@ -9,6 +9,9 @@ namespace PluginInstantiator::Private {
 }
 
 namespace PluginInstantiator {
+	template<typename>
+	inline constexpr auto AlwaysFalse = false;
+
 	inline auto FilterMode(auto Policy) {
 		if constexpr (std::same_as<std::decay_t<decltype(Policy)>, VSFilterMode>)
 			return static_cast<int>(Policy);
@@ -21,6 +24,50 @@ namespace PluginInstantiator {
 			}
 			throw std::runtime_error{ "PluginInstantiator: unknown filter execution policy." };
 		}
+	}
+
+	auto ConfigureFilterNode(auto& Filter, VSNode* Node) -> void {
+		using FilterType = std::decay_t<decltype(Filter)>;
+		const auto LinearAccess = [&] {
+			if constexpr (requires { Filter.SpecifyLinearAccess(); })
+				return static_cast<bool>(Filter.SpecifyLinearAccess());
+			else if constexpr (requires { FilterType::LinearAccess; })
+				return static_cast<bool>(FilterType::LinearAccess);
+			else
+				return false;
+		}();
+		if (LinearAccess)
+			API4::EnableLinearAccess(Node);
+
+		const auto CachePolicy = [&] {
+			if constexpr (requires { Filter.SpecifyCachePolicy(); })
+				return Filter.SpecifyCachePolicy();
+			else if constexpr (requires { FilterType::CachePolicy; })
+				return FilterType::CachePolicy;
+			else
+				return CacheOptions::Automatic;
+		}();
+		using CachePolicyType = std::decay_t<decltype(CachePolicy)>;
+		if constexpr (std::same_as<CachePolicyType, CacheOptions>) {
+			if (!LinearAccess || CachePolicy == CacheOptions::Disabled)
+				API4::SetCacheMode(Node, CachePolicy == CacheOptions::Disabled ? CacheModes::Disabled : CacheModes::Automatic);
+		}
+		else if constexpr (std::same_as<CachePolicyType, CacheModes>) {
+			if (!LinearAccess || CachePolicy != CacheModes::Automatic)
+				API4::SetCacheMode(Node, CachePolicy);
+		}
+		else if constexpr (std::same_as<CachePolicyType, API4::CacheConfiguration>) {
+			if (!LinearAccess)
+				API4::SetCacheMode(Node, CacheModes::Automatic);
+			API4::ConfigureCache(Node, CachePolicy);
+		}
+		else if constexpr (std::same_as<CachePolicyType, API4::CachePolicy>) {
+			if (!LinearAccess || CachePolicy.Mode != CacheModes::Automatic)
+				API4::SetCacheMode(Node, CachePolicy.Mode);
+			API4::ConfigureCache(Node, CachePolicy.Options);
+		}
+		else
+			static_assert(AlwaysFalse<CachePolicyType>, "PluginInstantiator: SpecifyCachePolicy() must return CacheOptions, API4::CacheModes, API4::CacheConfiguration, or API4::CachePolicy.");
 	}
 
 	template<typename FilterType>
@@ -130,15 +177,6 @@ namespace PluginInstantiator {
 					else
 						return static_cast<int>(fmParallel);
 				}();
-				auto CachePolicy = [&] {
-					if constexpr (requires { Filter.SpecifyCachePolicy(); })
-						return Filter.SpecifyCachePolicy();
-					else if constexpr (requires { FilterType::CachePolicy; })
-						return FilterType::CachePolicy;
-					else
-						return CacheOptions::Automatic;
-				}();
-
 				auto FrameGenerator = [](int Index, int ActivationReason, void* InstancePointer, void**, VSFrameContext* FrameContext, VSCore* CoreHandle, const VSAPI* API) VS_CC -> const VSFrame* {
 					UniversalContext::InstallAPI(API);
 					if (ActivationReason == arError)
@@ -179,8 +217,7 @@ namespace PluginInstantiator {
 					if (Node == nullptr)
 						throw std::runtime_error{ "failed to create the video filter node." };
 					FilterInstance.release();
-					if constexpr (std::same_as<std::decay_t<decltype(CachePolicy)>, CacheOptions>)
-						API->setCacheMode(Node, CachePolicy == CacheOptions::Disabled ? cmForceDisable : cmAuto);
+					ConfigureFilterNode(Filter, Node);
 					if (API->mapConsumeNode(TargetOutput, "clip", Node, maAppend) != 0)
 						throw std::runtime_error{ "failed to publish the video filter node." };
 				}
@@ -191,8 +228,7 @@ namespace PluginInstantiator {
 					if (Node == nullptr)
 						throw std::runtime_error{ "failed to create the audio filter node." };
 					FilterInstance.release();
-					if constexpr (std::same_as<std::decay_t<decltype(CachePolicy)>, CacheOptions>)
-						API->setCacheMode(Node, CachePolicy == CacheOptions::Disabled ? cmForceDisable : cmAuto);
+					ConfigureFilterNode(Filter, Node);
 					if (API->mapConsumeNode(TargetOutput, "clip", Node, maAppend) != 0)
 						throw std::runtime_error{ "failed to publish the audio filter node." };
 				}
