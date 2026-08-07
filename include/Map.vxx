@@ -5,6 +5,12 @@
 struct Function;
 
 namespace Utility::Map {
+	template<typename TargetType>
+	concept InitializerList = requires {
+		typename std::remove_cvref_t<TargetType>::value_type;
+		requires std::same_as<std::remove_cvref_t<TargetType>, std::initializer_list<typename std::remove_cvref_t<TargetType>::value_type>>;
+	};
+
 	template<auto NonOwning = false>
 	using Reference = ResourceManager::Tracker<VSMap, NonOwning>;
 
@@ -173,12 +179,11 @@ namespace Utility::Map {
 		}
 
 	public:
-		template<Iterable TargetType>
-		operator TargetType() const requires requires(TargetType x) {
-			{ x }->AnyBut<std::initializer_list<std::decay_t<decltype(*x.begin())>>, std::initializer_list<const std::decay_t<decltype(*x.begin())>>>;
-			requires (requires { { x }->ConstructibleFrom<const char*>; } == false);
-			requires (requires { { x.Type() }->SubtypeOf<ItemTypes>; } == false);
-		} {
+		template<typename TargetType> requires (Iterable<TargetType> && !InitializerList<TargetType>)
+		operator TargetType() const requires (
+			!std::constructible_from<TargetType, const char*> &&
+			!requires(TargetType x) { x.Type(); }
+		) {
 			using ElementType = std::decay_t<decltype(*TargetType{}.begin()) > ;
 			constexpr auto IsNumber = std::floating_point<ElementType> || Countable<ElementType>;
 			constexpr auto IsString = ConstructibleFrom<ElementType, const char*>;
