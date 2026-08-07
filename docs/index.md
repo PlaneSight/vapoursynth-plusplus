@@ -36,13 +36,14 @@ The library is designed around a small, explicit filter contract:
 
 ## Start here
 
-- [Install the dependencies and build the tests](getting-started/installation.md)
-- [Write a small typed filter](getting-started/first-filter.md)
-- [Understand the filter lifecycle](concepts/filter-lifecycle.md)
-- [Choose the correct frame-acquisition pattern](concepts/scheduling.md)
-- [Browse the reference](reference/registration.md)
-- [Use the API 4.2 extensions](reference/api42-extensions.md)
-- [See how the included examples map to common filter designs](examples/catalog.md)
+| If you want to... | Read |
+| --- | --- |
+| Build and verify the project | [Installation](getting-started/installation.md) |
+| Write a video filter | [Your first filter](getting-started/first-filter.md) |
+| Write an audio filter | [Work with audio](getting-started/audio.md) |
+| Understand scheduling and ownership | [Concepts](concepts/index.md) |
+| Look up a public type or operation | [Reference](reference/index.md) |
+| Compare complete filter designs | [Example catalog](examples/catalog.md) |
 
 ## Minimal shape of a filter
 
