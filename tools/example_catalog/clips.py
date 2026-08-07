@@ -195,6 +195,14 @@ def build_selections(core: vs.Core, plugin_path: Path) -> Sequence[FrameSelectio
 
     temporal = core.std.Splice(clips=[gray, checkerboard(core, inverted=True), gray])
     temporal_median = plugin.TemporalMedian(clip=temporal, radius=1)
+    temporal_difference = plugin.TemporalDifference(clip=temporal)
+    require_close(
+        float(temporal_difference.get_frame(0).props.DifferenceMean),
+        0.0,
+        "TemporalDifference first-frame score",
+    )
+    if float(temporal_difference.get_frame(1).props.DifferenceMean) <= 0.0:
+        raise RuntimeError("TemporalDifference failed to detect the changed frame")
 
     foreground = horizontal_stripes(
         core,
@@ -209,6 +217,13 @@ def build_selections(core: vs.Core, plugin_path: Path) -> Sequence[FrameSelectio
     merged = plugin.MaskedMerge(clipa=rgb, clipb=foreground, mask=mask)
 
     modified = plugin.ModifyFrame(clip=rgb, evaluator=invert_frame)
+    prop_input = core.std.SetFrameProps(rgb, Gain=0.35)
+    prop_gain = plugin.PropGain(clip=prop_input)
+    require_close(
+        float(prop_gain.get_frame(0).props.AppliedGain),
+        0.35,
+        "PropGain applied property",
+    )
     convolved = plugin.SeparableConvolution(
         clip=gray,
         h_kernel=[1.0, 2.0, 1.0],
@@ -239,10 +254,14 @@ def build_selections(core: vs.Core, plugin_path: Path) -> Sequence[FrameSelectio
         FrameSelection("crop-after.png", crop),
         FrameSelection("temporal-median-before.png", temporal, 1),
         FrameSelection("temporal-median-after.png", temporal_median, 1),
+        FrameSelection("temporal-difference-before.png", temporal, 1),
+        FrameSelection("temporal-difference-after.png", temporal_difference, 1),
         FrameSelection("masked-merge-before.png", rgb),
         FrameSelection("masked-merge-after.png", merged),
         FrameSelection("modify-frame-before.png", rgb),
         FrameSelection("modify-frame-after.png", modified),
+        FrameSelection("prop-gain-before.png", prop_input),
+        FrameSelection("prop-gain-after.png", prop_gain),
         FrameSelection("separable-convolution-before.png", gray),
         FrameSelection("separable-convolution-after.png", convolved),
         FrameSelection("rec601-to-rgb-before.png", yuv_preview),

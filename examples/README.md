@@ -39,8 +39,9 @@ canonical home under `../tests/`.
 
 ## Visual catalog
 
-The repository-level generator dogfoods all nine filters and writes the images
-used by the documentation catalog:
+The repository-level generator dogfoods all eleven video filters and writes the
+images used by the documentation catalog. AudioGain is covered by the
+registration contract and the audio guide:
 
 ```bash
 uv run --group runtime-test python -m tools.example_catalog \

@@ -75,6 +75,11 @@ static_assert(requires(CoreProxy Core, FrameReference Frame, AudioFrame<void> Au
 	Core.ShuffleChannels(AudioFrame, Channels, Layout);
 });
 
+static_assert(requires(const AudioNode& Node, FrameGenerator::ContextProxy Context, const CoreProxy& Core, AudioFrame<const float> Frame) {
+	{ Node.AcquireFrame<const float>(0, Context) } -> std::same_as<AudioFrame<const float>>;
+	{ Core.CreateBlankFrameFrom(Frame) } -> std::same_as<AudioFrame<float>>;
+});
+
 static_assert(requires(Utility::Map::Item<false, false> Item, Node Node) {
 	{ Item.IsPresent() } -> std::same_as<bool>;
 	{ Item.IsEmpty() } -> std::same_as<bool>;

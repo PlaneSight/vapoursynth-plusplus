@@ -23,6 +23,9 @@ so the filter headers can focus on their data and scheduling contracts.
 | [SeparableConvolution](separable-convolution.md) | Composing horizontal and vertical passes | Constant dimensions and format; single-precision float | Nested filter workflow |
 | [Rec601ToRGB](rec601-to-rgb.md) | Format conversion and frame-property checks | YUV444PS, full range, Rec. 601 matrix | One strict spatial frame |
 | [Palette](palette.md) | A source filter with generated metadata | Positive dimensions; non-empty shade list | No input dependency |
+| [PropGain](prop-gain.md) | Reading a frame property and publishing derived metadata | Constant GrayS or RGBS clip | One strict spatial frame |
+| [TemporalDifference](temporal-difference.md) | Relative frame requests and motion metadata | Constant single-precision video | Previous and current frame; no frame reuse |
+| [AudioGain](audio-gain.md) | Typed audio access and bounded sample processing | 32-bit floating-point audio | One strict audio frame |
 
 ## Visual results
 
@@ -64,6 +67,16 @@ The two implementations agree throughout the image interior. Their one-pixel bor
 
 The three-frame input is `normal, inverted, normal`; selecting the per-pixel median restores the centre frame to the repeated neighbours.
 
+### TemporalDifference
+
+| Changed frame | Absolute difference from the previous frame |
+| --- | --- |
+| ![Changed checkerboard before TemporalDifference](../assets/example-catalog/temporal-difference-before.png) | ![Difference image after TemporalDifference](../assets/example-catalog/temporal-difference-after.png) |
+
+The filter publishes the mean difference as `DifferenceMean` in addition to
+rendering the per-sample absolute difference. Its explicit replicate boundary
+policy makes the first frame compare against itself.
+
 ### MaskedMerge
 
 | Before: background | After: masked foreground blend |
@@ -75,6 +88,16 @@ The three-frame input is `normal, inverted, normal`; selecting the per-pixel med
 | Before | After: callback result |
 | --- | --- |
 | ![Color stripes before ModifyFrame](../assets/example-catalog/modify-frame-before.png) | ![Inverted color stripes returned by the callback](../assets/example-catalog/modify-frame-after.png) |
+
+### PropGain
+
+| RGBS input with `Gain=0.35` | Property-driven gain output |
+| --- | --- |
+| ![RGB stripe input for PropGain](../assets/example-catalog/prop-gain-before.png) | ![RGB stripe output after PropGain](../assets/example-catalog/prop-gain-after.png) |
+
+The pixels change because the input frame carries a `Gain` property. The
+output also carries `AppliedGain`, making the value used by the native filter
+observable to downstream nodes.
 
 ### SeparableConvolution
 
@@ -89,6 +112,12 @@ The three-frame input is `normal, inverted, normal`; selecting the per-pixel med
 | ![False-color view of Y, Cb, and Cr values before Rec601ToRGB](../assets/example-catalog/rec601-to-rgb-before.png) | ![RGB color stripes after Rec601ToRGB](../assets/example-catalog/rec601-to-rgb-after.png) |
 
 The left image maps Y, Cb + 0.5, and Cr + 0.5 into display channels so the stored planes are visible; it is not an RGB interpretation of the YUV frame. The generator independently calculates the Rec. 601 reference colors and checks the plugin output sample-for-sample.
+
+### AudioGain
+
+`AudioGain` has no RGB asset: its output is a typed audio node. The [audio
+guide](audio-gain.md) provides a deterministic `std.BlankAudio` script and
+explains channel-plane access, sample clamping, and output selection.
 
 ## Reading the examples
 

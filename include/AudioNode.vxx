@@ -7,4 +7,8 @@ struct AudioNode : Node {
 	auto FetchFrame(std::integral auto Index, auto GeneratorContext) const {
 		return AudioFrame<SampleType>{ Node::FetchFrame(Index, GeneratorContext).Leak() };
 	}
+	template<typename SampleType>
+	auto AcquireFrame(std::integral auto Index, auto GeneratorContext) const {
+		return AudioFrame<SampleType>{ Node::AcquireFrame(Index, GeneratorContext).Leak() };
+	}
 };

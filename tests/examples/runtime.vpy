@@ -14,14 +14,17 @@ EXPECTED_SHADE = 0.25
 SAMPLE_TOLERANCE = 1e-6
 EXPECTED_FUNCTIONS = frozenset(
     {
+        "AudioGain",
         "Crop",
         "GaussBlur",
         "GaussBlurFast",
         "MaskedMerge",
         "ModifyFrame",
         "Palette",
+        "PropGain",
         "Rec601ToRGB",
         "SeparableConvolution",
+        "TemporalDifference",
         "TemporalMedian",
     }
 )

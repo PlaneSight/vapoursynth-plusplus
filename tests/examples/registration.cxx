@@ -93,27 +93,32 @@ int main(int ArgumentCount, char** Arguments) {
 	if (!Require(PluginIdentifier == "com.vsfilterscript.test", "unexpected plugin identifier") ||
 		!Require(PluginNamespace == "test", "unexpected plugin namespace") ||
 		!Require(PluginDescription == "Test filters for vsFilterScript", "unexpected plugin description") ||
-		!Require(Registrations.size() == 9, "unexpected registered function count")) {
+		!Require(Registrations.size() == 12, "unexpected registered function count")) {
 		return EXIT_FAILURE;
 	}
 
 	auto Names = std::set<std::string>{};
 	const auto ExpectedArguments = std::map<std::string, std::string>{
 		{ "Crop", "clip:vnode;left:int:opt;right:int:opt;top:int:opt;bottom:int:opt;" },
+		{ "AudioGain", "clip:anode;gain:float:opt;" },
 		{ "GaussBlur", "clip:vnode;" },
 		{ "GaussBlurFast", "clip:vnode;" },
 		{ "MaskedMerge", "clipa:vnode;clipb:vnode;mask:vnode;" },
 		{ "ModifyFrame", "clip:vnode;evaluator:func;" },
 		{ "Palette", "shades:float[];width:int:opt;height:int:opt;" },
+		{ "PropGain", "clip:vnode;" },
 		{ "Rec601ToRGB", "clip:vnode;" },
 		{ "SeparableConvolution", "clip:vnode;h_kernel:float[]:opt;v_kernel:float[]:opt;" },
+		{ "TemporalDifference", "clip:vnode;" },
 		{ "TemporalMedian", "clip:vnode;radius:int:opt;" },
 	};
 	for (const auto& Registration : Registrations) {
 		const auto Expected = ExpectedArguments.find(Registration.Name);
+		const auto ExpectedReturnType =
+			Registration.Name == "AudioGain" ? "clip:anode;" : "clip:vnode;";
 		if (!Require(Expected != ExpectedArguments.end(), "unexpected registered function name") ||
 			!Require(Registration.Arguments == Expected->second, "unexpected registered argument signature") ||
-			!Require(Registration.ReturnType == "clip:vnode;", "unexpected registered return signature")) {
+			!Require(Registration.ReturnType == ExpectedReturnType, "unexpected registered return signature")) {
 			return EXIT_FAILURE;
 		}
 		Names.insert(Registration.Name);

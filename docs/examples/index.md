@@ -8,6 +8,8 @@ description: Build and verify the independent example plugin.
 The `examples/` directory is an independently configured Meson consumer of the
 library. It owns the demonstration plugin and its build definition. All test
 code lives under `tests/`, grouped into `library/` and `examples/` contracts.
+The catalog starts with small video filters and then moves into examples that
+combine frame properties, temporal requests, and audio frames.
 
 ## Build-time verification
 
@@ -56,8 +58,11 @@ documentation part of the runtime compatibility contract.
 ## Read the implementations
 
 Start with [Palette](palette.md) for a source filter or
-[GaussBlur](gauss-blur.md) for a single-input spatial filter. The
-[example catalog](catalog.md) compares every filter by input contract and
+[GaussBlur](gauss-blur.md) for a single-input spatial filter. Continue with
+[Property-driven gain](prop-gain.md) when you want frame properties to control
+pixel work, [Temporal difference](temporal-difference.md) for a two-frame
+request plan, or [Audio gain](audio-gain.md) for a complete audio filter.
+The [example catalog](catalog.md) compares every filter by input contract and
 scheduling model, then links to a guided code reading for each implementation.
 
 !!! warning "Examples are contracts, not universal filters"

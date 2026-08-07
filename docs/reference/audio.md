@@ -32,12 +32,13 @@ is useful when the sample type is not known at compile time.
 auto Frame = InputAudio.AcquireFrame<const float>(Index, GeneratorContext);
 auto Samples = Frame[0];
 
-auto FirstSample = Samples[0];
-auto SampleCount = Samples.Length;
+auto FirstSample = Samples[0][0];
+auto SampleCount = Samples.Width;
 auto SampleStride = Samples.Stride;
 ```
 
-The channel index is zero-based. `Length` and `Stride` are measured in samples.
+The channel index is zero-based. `Width` and `Stride` are measured in samples;
+the channel view has height 1.
 The frame also exposes its normalized `AudioFormat` through `ExtractFormat()`.
 
 ## AudioFormat

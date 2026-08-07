@@ -8,6 +8,9 @@
 #include "ModifyFrame.hxx"
 #include "Palette.hxx"
 #include "MaskedMerge.hxx"
+#include "PropGain.hxx"
+#include "TemporalDifference.hxx"
+#include "AudioGain.hxx"
 
 auto Main() {
 	auto Descriptor = PluginInfo{
@@ -25,6 +28,9 @@ auto Main() {
 	PluginInstantiator::RegisterFilter<ModifyFrame>();
 	PluginInstantiator::RegisterFilter<Palette>();
 	PluginInstantiator::RegisterFilter<MaskedMerge>();
+	PluginInstantiator::RegisterFilter<PropGain>();
+	PluginInstantiator::RegisterFilter<TemporalDifference>();
+	PluginInstantiator::RegisterFilter<AudioGain>();
 }
 
 InstantiatePluginFrom(Main);

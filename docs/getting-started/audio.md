@@ -33,15 +33,15 @@ auto Input = InputAudio.AcquireFrame<const float>(Index, GeneratorContext);
 
 for (auto Channel = 0; Channel < Input.ChannelCount; ++Channel) {
     auto& Samples = Input[Channel];
-    for (auto Sample = 0; Sample < Samples.Length; ++Sample)
-        Analyse(Samples[Sample]);
+    for (auto Sample = 0; Sample < Samples.Width; ++Sample)
+        Analyse(Samples[0][Sample]);
 }
 ```
 
-`AudioFrame<T>::operator[]` selects a channel. The channel view reports its
-`Length` in samples and its `Stride` in samples, not bytes. Use a const sample
-type for read-only access; allocate or acquire a non-const frame only when the
-filter owns writable output.
+`AudioFrame<T>::operator[]` selects a channel. The channel view has height 1;
+its `Width` is the number of samples and its `Stride` is measured in samples,
+not bytes. Use a const sample type for read-only access; allocate or acquire a
+non-const frame only when the filter owns writable output.
 
 ## Allocate output
 
@@ -50,7 +50,7 @@ channel layout:
 
 ```cpp
 auto Output = Core.CreateBlankFrameFrom(Input);
-Output[0][0] = Input[0][0];
+Output[0][0][0] = Input[0][0][0];
 ```
 
 For a new descriptor, pass an `AudioFormat` and the number of samples:
@@ -96,4 +96,5 @@ frames explicit in the filter contract.
 
 For lifecycle, dependency, and ownership rules shared by both media types,
 continue with [Filter lifecycle](../concepts/filter-lifecycle.md) and [Frames
-and ownership](../concepts/frames-and-ownership.md).
+and ownership](../concepts/frames-and-ownership.md). The complete processing
+example is [AudioGain](../examples/audio-gain.md).

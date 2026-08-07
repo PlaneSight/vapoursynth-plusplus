@@ -2,8 +2,10 @@
 
 This package is the executable source for the documentation images under
 `docs/assets/example-catalog/`. It constructs deterministic clips with
-VapourSynth, loads the built example plugin, requests output from all nine
-example filters, and encodes the selected frames as RGB PNGs.
+VapourSynth, loads the built example plugin, requests output from all eleven
+video example filters, and encodes the selected frames as RGB PNGs. AudioGain
+is covered by the registration contract and its dedicated audio guide because
+audio frames are not RGB images.
 
 From the repository root, after building the plugin against the pinned runtime:
 

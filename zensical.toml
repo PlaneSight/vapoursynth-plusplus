@@ -44,6 +44,11 @@ nav = [
         { "ModifyFrame callbacks" = "examples/modify-frame.md" },
         { "SeparableConvolution workflow" = "examples/separable-convolution.md" },
         { "Rec601ToRGB format conversion" = "examples/rec601-to-rgb.md" },
+        { "Advanced examples" = [
+            { "Property-driven gain" = "examples/prop-gain.md" },
+            { "Temporal difference" = "examples/temporal-difference.md" },
+            { "Audio gain" = "examples/audio-gain.md" },
+        ] },
     ] },
     { "Project" = [
         "project/index.md",

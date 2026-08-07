@@ -38,6 +38,7 @@ uv run --group runtime-test python -m tools.example_catalog \
     --check
 ```
 
-The second command requests frames from every example and compares the rendered
-pixels with the documentation assets. Adjust the plugin path and module suffix
-for the host platform.
+The second command requests frames from every video example and compares the
+rendered pixels with the documentation assets. AudioGain is verified by plugin
+registration, `tests/examples/audio_runtime.py`, and its audio-specific guide.
+Adjust the plugin path and module suffix for the host platform.
