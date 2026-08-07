@@ -80,7 +80,7 @@ static_assert(requires(Utility::Map::Item<false, false> Item, Node Node) {
 	{ Item.IsEmpty() } -> std::same_as<bool>;
 	{ Item.QueryDataTypeHint() } -> std::same_as<DataTypeHints>;
 	Item.Consume(std::move(Node));
-	static_cast<std::vector<std::int64_t>>(Item);
+	Item.Convert<std::vector<std::int64_t>>();
 });
 
 static_assert(requires(const VideoFormat& Video, const AudioFormat& Audio, const Plugin& Plugin) {

@@ -11,7 +11,7 @@ public:
 
 public:
 	Palette(auto Arguments) {
-		Shades = Arguments["shades"];
+		Shades = Arguments["shades"].template Convert<std::vector<double>>();
 		if (Arguments["width"].Exists())
 			Width = Arguments["width"];
 		if (Arguments["height"].Exists())
