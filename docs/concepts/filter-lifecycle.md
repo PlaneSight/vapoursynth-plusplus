@@ -18,7 +18,8 @@ configuration and exposes a small set of convention-based operations that the ad
 | Dependencies | SpecifyDependencies() | Declare which input frames the scheduler must make available |
 | Generation | GenerateFrame(...) | Request or fetch inputs, process them, and return an owned frame |
 | Optional policy | ExecutionPolicyForFrameGenerator or SpecifyExecutionPolicyForFrameGenerator() | Select the API scheduling mode |
-| Optional cache | CachePolicy or SpecifyCachePolicy() | Select automatic or disabled frame caching |
+| Optional scheduling | LinearAccess or SpecifyLinearAccess() | Mark a filter for linear frame access |
+| Optional cache | CachePolicy or SpecifyCachePolicy() | Select cache mode and, with API 4.2, cache limits |
 
 The adapter supports constructor and generator forms with or without CoreProxy, as appropriate
 for the operation. Prefer the most explicit form that your filter needs.

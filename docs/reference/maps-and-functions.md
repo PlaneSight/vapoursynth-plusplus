@@ -23,11 +23,12 @@ if (Arguments["radius"].Exists()) {
 An item may contain one value or a sequence. Convert sequences to a compatible container:
 
 ~~~cpp
-auto Kernel = static_cast<std::vector<double>>(Arguments["kernel"]);
+auto Kernel = Arguments["kernel"].Convert<std::vector<double>>();
 ~~~
 
 Supported conversions include integral and floating-point values, UTF-8 data, nodes, frames,
-functions, and compatible containers of those values.
+functions, and compatible containers of those values. Use `Convert<T>()` explicitly for
+`std::vector`, including `std::vector<std::int64_t>` and `std::vector<double>` native map arrays.
 
 ## Writable map items
 

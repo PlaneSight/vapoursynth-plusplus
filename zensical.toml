@@ -25,6 +25,7 @@ nav = [
         "reference/index.md",
         { "Registration" = "reference/registration.md" },
         { "CoreProxy" = "reference/core.md" },
+        { "API 4.2 extensions" = "reference/api42-extensions.md" },
         { "VideoNode and VideoFrame" = "reference/video.md" },
         { "Maps and functions" = "reference/maps-and-functions.md" },
         { "Formats and metadata" = "reference/formats.md" },

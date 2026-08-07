@@ -31,6 +31,7 @@ The library is designed around a small, explicit filter contract:
 | Frame scheduling | Explicit dependencies, two-phase acquisition, temporal frame requests |
 | Pixel access | Typed planes, read-only border remapping, writable direct access |
 | Core access | Format queries, frame allocation, plugin invocation, logging |
+| API 4.2 extensions | Cache policy, node and core introspection, map extensions, plugin metadata, audio channel shuffling |
 | Diagnostics | Exceptions translated into VapourSynth filter and map errors |
 
 ## Start here
@@ -40,6 +41,7 @@ The library is designed around a small, explicit filter contract:
 - [Understand the filter lifecycle](concepts/filter-lifecycle.md)
 - [Choose the correct frame-acquisition pattern](concepts/scheduling.md)
 - [Browse the reference](reference/registration.md)
+- [Use the API 4.2 extensions](reference/api42-extensions.md)
 - [See how the included examples map to common filter designs](examples/catalog.md)
 
 ## Minimal shape of a filter
