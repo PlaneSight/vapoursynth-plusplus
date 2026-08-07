@@ -16,52 +16,77 @@ namespace API4 {
 		int MaxHistorySize = -1;
 	};
 
-	struct CoreInfo2 {
-		std::string_view Version{};
-		int CoreVersion = 0;
-		int APIVersion = 0;
-		int CreationFlags = 0;
-		int ThreadCount = 0;
-		std::int64_t MaxFrameBufferSize = 0;
-		std::int64_t UsedFrameBufferSize = 0;
+	struct CachePolicy {
+		CacheModes Mode = CacheModes::Automatic;
+		CacheConfiguration Options{};
 	};
 
-	struct PluginFunctionInfo {
-		std::string_view Name{};
-		std::string_view Arguments{};
-		std::string_view ReturnType{};
-	};
+	using CoreInfo2 = ::CoreInfo2;
+	using PluginFunctionInfo = ::PluginFunctionInfo;
 
-	inline auto SetCacheMode(const Node& Target, CacheModes Mode) -> void {
-		UniversalContext::API->setCacheMode(Target.Handle, static_cast<int>(Mode));
+	inline auto SetCacheMode(VSNode* Target, CacheModes Mode) -> void {
+		UniversalContext::API->setCacheMode(Target, static_cast<int>(Mode));
 	}
 
-	inline auto ConfigureCache(const Node& Target, CacheConfiguration Configuration) -> void {
+	inline auto SetCacheMode(const Node& Target, CacheModes Mode) -> void {
+		SetCacheMode(Target.Handle, Mode);
+	}
+
+	inline auto ConfigureCache(VSNode* Target, CacheConfiguration Configuration) -> void {
 		UniversalContext::API->setCacheOptions(
-			Target.Handle,
+			Target,
 			Configuration.FixedSize,
 			Configuration.MaxSize,
 			Configuration.MaxHistorySize);
 	}
 
+	inline auto ConfigureCache(const Node& Target, CacheConfiguration Configuration) -> void {
+		ConfigureCache(Target.Handle, Configuration);
+	}
+
+	inline auto ApplyCachePolicy(VSNode* Target, CachePolicy Policy) -> void {
+		SetCacheMode(Target, Policy.Mode);
+		ConfigureCache(Target, Policy.Options);
+	}
+
+	inline auto ApplyCachePolicy(const Node& Target, CachePolicy Policy) -> void {
+		ApplyCachePolicy(Target.Handle, Policy);
+	}
+
+	inline auto EnableLinearAccess(VSNode* Target) -> int {
+		return UniversalContext::API->setLinearFilter(Target);
+	}
+
 	inline auto EnableLinearAccess(const Node& Target) -> int {
-		return UniversalContext::API->setLinearFilter(Target.Handle);
+		return EnableLinearAccess(Target.Handle);
+	}
+
+	inline auto ReleaseFrameEarly(VSNode* Source, std::integral auto Index, FrameGenerator::ContextProxy Context) -> void {
+		UniversalContext::API->releaseFrameEarly(Source, static_cast<int>(Index), Context.Handle);
 	}
 
 	inline auto ReleaseFrameEarly(const Node& Source, std::integral auto Index, FrameGenerator::ContextProxy Context) -> void {
-		UniversalContext::API->releaseFrameEarly(Source.Handle, static_cast<int>(Index), Context.Handle);
+		ReleaseFrameEarly(Source.Handle, Index, Context);
 	}
 
 	inline auto CacheFrame(const FrameReference& Frame, std::integral auto Index, FrameGenerator::ContextProxy Context) -> void {
 		UniversalContext::API->cacheFrame(Frame.Handle, static_cast<int>(Index), Context.Handle);
 	}
 
+	inline auto ClearCache(VSNode* Target) -> void {
+		UniversalContext::API->clearNodeCache(Target);
+	}
+
 	inline auto ClearCache(const Node& Target) -> void {
-		UniversalContext::API->clearNodeCache(Target.Handle);
+		ClearCache(Target.Handle);
+	}
+
+	inline auto ClearCaches(VSCore* Core) -> void {
+		UniversalContext::API->clearCoreCaches(Core);
 	}
 
 	inline auto ClearCaches(const CoreProxy& Core) -> void {
-		UniversalContext::API->clearCoreCaches(Core.Handle);
+		ClearCaches(Core.Handle);
 	}
 
 	inline auto QueryName(const Node& Target) -> std::string_view {
@@ -98,17 +123,7 @@ namespace API4 {
 	}
 
 	inline auto QueryCoreInfo(const CoreProxy& Core) -> CoreInfo2 {
-		auto Buffer = VSCoreInfo2{};
-		UniversalContext::API->getCoreInfo2(Core.Handle, &Buffer);
-		return CoreInfo2{
-			.Version = Buffer.versionString,
-			.CoreVersion = Buffer.coreVersion,
-			.APIVersion = Buffer.apiVersion,
-			.CreationFlags = Buffer.creationFlags,
-			.ThreadCount = Buffer.numThreads,
-			.MaxFrameBufferSize = Buffer.maxFramebufferSize,
-			.UsedFrameBufferSize = Buffer.usedFramebufferSize
-		};
+		return Core.QueryInfo2();
 	}
 
 	inline auto QueryFormatName(const VideoFormat& Format) -> std::string {
@@ -132,14 +147,7 @@ namespace API4 {
 	}
 
 	inline auto QueryFunctions(const Plugin& Target) -> std::vector<PluginFunctionInfo> {
-		auto Result = std::vector<PluginFunctionInfo>{};
-		for (VSPluginFunction* Function = nullptr; (Function = UniversalContext::API->getNextPluginFunction(Function, Target.Handle)) != nullptr;)
-			Result.push_back(PluginFunctionInfo{
-				.Name = UniversalContext::API->getPluginFunctionName(Function),
-				.Arguments = UniversalContext::API->getPluginFunctionArguments(Function),
-				.ReturnType = UniversalContext::API->getPluginFunctionReturnType(Function)
-			});
-		return Result;
+		return Target.ListFunctionInfo();
 	}
 
 	namespace Map {

@@ -195,6 +195,41 @@ public:
 	auto QueryCachePolicy() const {
 		return CacheOptions::Automatic;
 	}
+	auto SetCacheMode(CacheModes Mode) const -> void {
+		UniversalContext::API->setCacheMode(Handle, static_cast<int>(Mode));
+	}
+	auto ConfigureCache(int FixedSize = -1, int MaxSize = -1, int MaxHistorySize = -1) const -> void {
+		UniversalContext::API->setCacheOptions(Handle, FixedSize, MaxSize, MaxHistorySize);
+	}
+	auto EnableLinearAccess() const -> int {
+		return UniversalContext::API->setLinearFilter(Handle);
+	}
+	auto ClearCache() const -> void {
+		UniversalContext::API->clearNodeCache(Handle);
+	}
+	auto QueryName() const -> std::string_view {
+		return UniversalContext::API->getNodeName(Handle);
+	}
+	auto QueryFilterMode() const -> VSFilterMode {
+		return static_cast<VSFilterMode>(UniversalContext::API->getNodeFilterMode(Handle));
+	}
+	auto QueryDependencies() const -> std::vector<VSFilterDependency> {
+		auto Result = std::vector<VSFilterDependency>{};
+		auto Count = UniversalContext::API->getNumNodeDependencies(Handle);
+		if (Count < 0)
+			throw std::runtime_error{ "Node::QueryDependencies: VapourSynth returned a negative dependency count." };
+		Result.reserve(static_cast<std::size_t>(Count));
+		for (auto Index = 0; Index < Count; ++Index) {
+			auto Dependency = UniversalContext::API->getNodeDependency(Handle, Index);
+			if (Dependency == nullptr)
+				throw std::runtime_error{ "Node::QueryDependencies: VapourSynth returned a null dependency." };
+			Result.push_back(*Dependency);
+		}
+		return Result;
+	}
+	auto QueryProcessingTime(bool Reset = false) const -> std::int64_t {
+		return UniversalContext::API->getNodeProcessingTime(Handle, Reset ? 1 : 0);
+	}
 	auto SpecifyDependency(VSRequestPattern RequestPattern = rpGeneral) const {
 		return VSFilterDependency{ .source = Handle, .requestPattern = RequestPattern };
 	}

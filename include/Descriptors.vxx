@@ -113,7 +113,7 @@ struct AudioFormat {
 	field(BitsPerSample, 0);
 	field(BytesPerSample, 0);
 	field(ChannelCount, 0);
-	field(ChannelLayout, std::uint64_t{ 0 });
+	field(ChannelLayout, AudioChannelLayout{});
 
 	static auto FromAPI(const VSAudioFormat& FormatReference) -> AudioFormat {
 		return AudioFormat{
@@ -121,7 +121,7 @@ struct AudioFormat {
 			.BitsPerSample = FormatReference.bitsPerSample,
 			.BytesPerSample = FormatReference.bytesPerSample,
 			.ChannelCount = FormatReference.numChannels,
-			.ChannelLayout = FormatReference.channelLayout
+			.ChannelLayout = AudioChannelLayout{ FormatReference.channelLayout }
 		};
 	}
 	static auto ToAPI(const AudioFormat& FormatReference) -> VSAudioFormat {
@@ -130,7 +130,7 @@ struct AudioFormat {
 			.bitsPerSample = FormatReference.BitsPerSample,
 			.bytesPerSample = FormatReference.BytesPerSample,
 			.numChannels = FormatReference.ChannelCount,
-			.channelLayout = FormatReference.ChannelLayout
+			.channelLayout = static_cast<std::uint64_t>(FormatReference.ChannelLayout)
 		};
 	}
 };
@@ -251,6 +251,22 @@ struct CoreInfo {
 		StringRepresentation << "Frame Buffer Size: currently using " << UsedFrameBufferSize << " bytes out of " << MaxFrameBufferSize << " bytes";
 		return StringRepresentation.str();
 	}
+};
+
+struct CoreInfo2 {
+	field(Version, ""sv);
+	field(CoreVersion, 0);
+	field(APIVersion, 0);
+	field(CreationFlags, 0);
+	field(ThreadCount, 0);
+	field(MaxFrameBufferSize, 0_i64);
+	field(UsedFrameBufferSize, 0_i64);
+};
+
+struct PluginFunctionInfo {
+	field(Name, ""sv);
+	field(Arguments, ""sv);
+	field(ReturnType, ""sv);
 };
 
 namespace AlternateRepresentations::Flattened {

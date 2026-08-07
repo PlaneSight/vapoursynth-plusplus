@@ -18,6 +18,31 @@ struct CoreProxy {
 			.UsedFrameBufferSize = CoreInfoBuffer.usedFramebufferSize
 		};
 	}
+	auto QueryInfo2() const {
+		auto CoreInfoBuffer = VSCoreInfo2{};
+		UniversalContext::API->getCoreInfo2(Handle, &CoreInfoBuffer);
+		return CoreInfo2{
+			.Version = CoreInfoBuffer.versionString,
+			.CoreVersion = CoreInfoBuffer.coreVersion,
+			.APIVersion = CoreInfoBuffer.apiVersion,
+			.CreationFlags = CoreInfoBuffer.creationFlags,
+			.ThreadCount = CoreInfoBuffer.numThreads,
+			.MaxFrameBufferSize = CoreInfoBuffer.maxFramebufferSize,
+			.UsedFrameBufferSize = CoreInfoBuffer.usedFramebufferSize
+		};
+	}
+	auto ClearCaches() const -> void {
+		UniversalContext::API->clearCoreCaches(Handle);
+	}
+	auto NodeTimingEnabled() const -> bool {
+		return UniversalContext::API->getCoreNodeTiming(Handle) != 0;
+	}
+	auto SetNodeTiming(bool Enabled) const -> void {
+		UniversalContext::API->setCoreNodeTiming(Handle, Enabled ? 1 : 0);
+	}
+	auto QueryFreedNodeProcessingTime(bool Reset = false) const -> std::int64_t {
+		return UniversalContext::API->getFreedNodeProcessingTime(Handle, Reset ? 1 : 0);
+	}
 
 	auto Query(AnyOf<VideoFormats> auto FormatID) const {
 		auto FormatHandle = VSVideoFormat{};
@@ -136,8 +161,85 @@ struct CoreProxy {
 		auto Specifiers = std::array{ static_cast<int>(x1), static_cast<int>(x2), static_cast<int>(x3) };
 		return VideoFrame<PixelType>{ UniversalContext::API->newVideoFrame2(&FormatHandle, Frame1[x1].Width, Frame1[x1].Height, FrameHandles.data(), Specifiers.data(), Frame1.Handle, Handle) };
 	}
-	auto ShuffleChannels(auto&&, auto&&, auto&&) const -> AudioFrame<void> {
-		throw std::runtime_error{ "CoreProxy::ShuffleChannels is not implemented by the API 4 adapter." };
+	auto ShuffleChannels(auto&& Frames, auto&& ChannelIndexes, AudioFormat Format) const -> AudioFrame<void> {
+		auto SourceHandles = [&] {
+			auto Result = std::vector<const VSFrame*>{};
+			if constexpr (Iterable<decltype(Frames)>) {
+				for (auto&& Source : Frames) {
+					static_assert(SubtypeOf<decltype(Source), FrameReference>, "ShuffleChannels: sources must be audio frame references.");
+					Result.push_back(Source.Observe());
+				}
+			}
+			else {
+				static_assert(SubtypeOf<decltype(Frames), FrameReference>, "ShuffleChannels: sources must be audio frame references.");
+				Result.push_back(Frames.Observe());
+			}
+			return Result;
+		}();
+		if (SourceHandles.empty())
+			throw std::runtime_error{ "ShuffleChannels: at least one source frame is required." };
+
+		auto RequestedChannels = [&] {
+			auto Result = std::vector<int>{};
+			if constexpr (Iterable<decltype(ChannelIndexes)>)
+				for (auto Channel : ChannelIndexes)
+					Result.push_back(static_cast<int>(Channel));
+			else
+				Result.push_back(static_cast<int>(ChannelIndexes));
+			return Result;
+		}();
+		if (RequestedChannels.empty())
+			throw std::runtime_error{ "ShuffleChannels: at least one output channel is required." };
+		if (std::ranges::any_of(RequestedChannels, [](auto Channel) { return Channel < 0; }))
+			throw std::runtime_error{ "ShuffleChannels: channel indexes must be non-negative." };
+
+		if (Format.ChannelCount == 0)
+			Format.ChannelCount = static_cast<int>(RequestedChannels.size());
+		if (Format.ChannelCount != static_cast<int>(RequestedChannels.size()))
+			throw std::runtime_error{ "ShuffleChannels: output channel count does not match the channel index count." };
+		if (Format.ChannelLayout.Count() != 0 && Format.ChannelLayout.Count() != static_cast<std::size_t>(Format.ChannelCount))
+			throw std::runtime_error{ "ShuffleChannels: channel layout does not match the output channel count." };
+		if (SourceHandles.size() != 1 && SourceHandles.size() != RequestedChannels.size())
+			throw std::runtime_error{ "ShuffleChannels: specify one source frame or one source frame per output channel." };
+		if (SourceHandles.size() == 1)
+			SourceHandles.resize(RequestedChannels.size(), SourceHandles.front());
+
+		const auto SampleCount = UniversalContext::API->getFrameLength(SourceHandles.front());
+		for (const auto Source : SourceHandles) {
+			if (UniversalContext::API->getFrameType(Source) != mtAudio)
+				throw std::runtime_error{ "ShuffleChannels: every source must be an audio frame." };
+			if (UniversalContext::API->getFrameLength(Source) != SampleCount)
+				throw std::runtime_error{ "ShuffleChannels: source frames must have equal sample counts." };
+		}
+
+		auto APIFormat = AudioFormat::ToAPI(Format);
+		auto Result = UniversalContext::API->newAudioFrame2(
+			&APIFormat,
+			SampleCount,
+			SourceHandles.data(),
+			RequestedChannels.data(),
+			SourceHandles.front(),
+			Handle);
+		if (Result == nullptr)
+			throw std::runtime_error{ "ShuffleChannels: failed to allocate the output frame." };
+		return AudioFrame<void>{ Result };
+	}
+	auto ShuffleChannels(auto&& Frames, auto&& ChannelIndexes, AudioChannelLayout Layout) const -> AudioFrame<void> {
+		auto Source = [&] {
+			if constexpr (Iterable<decltype(Frames)>)
+				return *Frames.begin();
+			else
+				return Frames;
+		}();
+		if constexpr (requires { Source.QueryAudioFormat(); }) {
+			auto Format = Source.QueryAudioFormat();
+			Format.ChannelLayout = Layout;
+			Format.ChannelCount = static_cast<int>(Layout.Count());
+			return ShuffleChannels(Forward(Frames), Forward(ChannelIndexes), Format);
+		}
+		else {
+			static_assert(sizeof(Source) == 0, "ShuffleChannels: unable to infer the source audio format.");
+		}
 	}
 	auto CopyFrame(SubtypeOf<FrameReference> auto&& ReferenceFrame) const {
 		auto FrameHandle = UniversalContext::API->copyFrame(ReferenceFrame.Handle, Handle);

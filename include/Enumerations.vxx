@@ -1,6 +1,9 @@
 #pragma once
 
+#include <bit>
 #include <cstdint>
+#include <initializer_list>
+#include <vector>
 
 #include "VapourSynthConfig.vxx"
 
@@ -14,6 +17,68 @@ enum struct ColorFamilies : int {
 enum struct SampleTypes : int {
 	Int = 0,
 	Float = 1
+};
+
+enum struct AudioChannels : int {
+	FrontLeft = acFrontLeft,
+	FrontRight = acFrontRight,
+	FrontCenter = acFrontCenter,
+	LowFrequency = acLowFrequency,
+	BackLeft = acBackLeft,
+	BackRight = acBackRight,
+	FrontLeftOfCenter = acFrontLeftOFCenter,
+	FrontRightOfCenter = acFrontRightOFCenter,
+	BackCenter = acBackCenter,
+	SideLeft = acSideLeft,
+	SideRight = acSideRight,
+	TopCenter = acTopCenter,
+	TopFrontLeft = acTopFrontLeft,
+	TopFrontCenter = acTopFrontCenter,
+	TopFrontRight = acTopFrontRight,
+	TopBackLeft = acTopBackLeft,
+	TopBackCenter = acTopBackCenter,
+	TopBackRight = acTopBackRight,
+	StereoLeft = acStereoLeft,
+	StereoRight = acStereoRight,
+	WideLeft = acWideLeft,
+	WideRight = acWideRight,
+	SurroundDirectLeft = acSurroundDirectLeft,
+	SurroundDirectRight = acSurroundDirectRight,
+	LowFrequency2 = acLowFrequency2
+};
+
+struct AudioChannelLayout {
+	std::uint64_t Mask = 0;
+
+	constexpr AudioChannelLayout() = default;
+	constexpr AudioChannelLayout(std::uint64_t ChannelMask) : Mask{ ChannelMask } {}
+
+	static constexpr auto FromChannel(AudioChannels Channel) -> AudioChannelLayout {
+		return AudioChannelLayout{ std::uint64_t{ 1 } << static_cast<unsigned>(Channel) };
+	}
+	static auto FromChannels(std::initializer_list<AudioChannels> Channels) -> AudioChannelLayout {
+		auto Result = AudioChannelLayout{};
+		for (const auto Channel : Channels)
+			Result.Mask |= FromChannel(Channel).Mask;
+		return Result;
+	}
+
+	constexpr auto Contains(AudioChannels Channel) const -> bool {
+		return (Mask & FromChannel(Channel).Mask) != 0;
+	}
+	constexpr auto Count() const -> std::size_t {
+		return std::popcount(Mask);
+	}
+	constexpr operator std::uint64_t() const { return Mask; }
+
+	auto Channels() const -> std::vector<AudioChannels> {
+		auto Result = std::vector<AudioChannels>{};
+		Result.reserve(Count());
+		for (auto Bit = 0u; Bit < 64u; ++Bit)
+			if ((Mask & (std::uint64_t{ 1 } << Bit)) != 0)
+				Result.push_back(static_cast<AudioChannels>(Bit));
+		return Result;
+	}
 };
 
 enum struct ItemTypes {
