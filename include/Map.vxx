@@ -179,6 +179,22 @@ namespace Utility::Map {
 		}
 
 	public:
+		operator std::vector<std::int64_t>() const {
+			auto Error = 0;
+			auto Data = UniversalContext::API->mapGetIntArray(StorageAccess->Handle, StorageAccess->Key.data(), &Error);
+			if (Error != peSuccess)
+				throw std::runtime_error{ "Item: failed to read native integer array." };
+			return { Data, Data + QueryStorageSize() };
+		}
+
+		operator std::vector<double>() const {
+			auto Error = 0;
+			auto Data = UniversalContext::API->mapGetFloatArray(StorageAccess->Handle, StorageAccess->Key.data(), &Error);
+			if (Error != peSuccess)
+				throw std::runtime_error{ "Item: failed to read native float array." };
+			return { Data, Data + QueryStorageSize() };
+		}
+
 		template<typename TargetType> requires (Iterable<TargetType> && !InitializerList<TargetType>)
 		operator TargetType() const requires (
 			!std::constructible_from<TargetType, const char*> &&
@@ -193,27 +209,35 @@ namespace Utility::Map {
 				x.resize(std::size_t{});
 				x.data();
 			}) {
-				auto Error = 0;
-				auto Data = UniversalContext::API->mapGetIntArray(StorageAccess->Handle, StorageAccess->Key.data(), &Error);
-				if (Error != peSuccess)
-					throw std::runtime_error{ "Item: failed to read native integer array." };
-				auto Result = TargetType{};
-				Result.resize(static_cast<std::size_t>(QueryStorageSize()));
-				std::copy_n(Data, Result.size(), Result.data());
-				return Result;
+				if constexpr (std::same_as<TargetType, std::vector<std::int64_t>>)
+					return static_cast<std::vector<std::int64_t>>(*this);
+				else {
+					auto Error = 0;
+					auto Data = UniversalContext::API->mapGetIntArray(StorageAccess->Handle, StorageAccess->Key.data(), &Error);
+					if (Error != peSuccess)
+						throw std::runtime_error{ "Item: failed to read native integer array." };
+					auto Result = TargetType{};
+					Result.resize(static_cast<std::size_t>(QueryStorageSize()));
+					std::copy_n(Data, Result.size(), Result.data());
+					return Result;
+				}
 			}
 			if constexpr (std::same_as<ElementType, double> && requires(TargetType x) {
 				x.resize(std::size_t{});
 				x.data();
 			}) {
-				auto Error = 0;
-				auto Data = UniversalContext::API->mapGetFloatArray(StorageAccess->Handle, StorageAccess->Key.data(), &Error);
-				if (Error != peSuccess)
-					throw std::runtime_error{ "Item: failed to read native float array." };
-				auto Result = TargetType{};
-				Result.resize(static_cast<std::size_t>(QueryStorageSize()));
-				std::copy_n(Data, Result.size(), Result.data());
-				return Result;
+				if constexpr (std::same_as<TargetType, std::vector<double>>)
+					return static_cast<std::vector<double>>(*this);
+				else {
+					auto Error = 0;
+					auto Data = UniversalContext::API->mapGetFloatArray(StorageAccess->Handle, StorageAccess->Key.data(), &Error);
+					if (Error != peSuccess)
+						throw std::runtime_error{ "Item: failed to read native float array." };
+					auto Result = TargetType{};
+					Result.resize(static_cast<std::size_t>(QueryStorageSize()));
+					std::copy_n(Data, Result.size(), Result.data());
+					return Result;
+				}
 			}
 			return Utility::ContainerManipulators::MapWithNaturalTransformation<TargetType>([](auto&& x) { return static_cast<ElementType>(x); }, *this);
 		}
