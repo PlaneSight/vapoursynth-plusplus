@@ -1,4 +1,5 @@
 #include "PluginInstantiator.vxx"
+#include "Invert.hxx"
 #include "GaussBlur.hxx"
 #include "GaussBlurFast.hxx"
 #include "TemporalMedian.hxx"
@@ -19,6 +20,7 @@ auto Main() {
 		.Description = "Test filters for vsFilterScript"
 	};
 	PluginInstantiator::SpecifyConfigurations(Descriptor);
+	PluginInstantiator::RegisterFilter<Invert>();
 	PluginInstantiator::RegisterFilter<GaussBlur>();
 	PluginInstantiator::RegisterFilter<GaussBlurFast>();
 	PluginInstantiator::RegisterFilter<TemporalMedian>();
